@@ -12,9 +12,10 @@ GSV_gene_count_list = load_graftm_gene_count(
   env.df = env,
   refColumn = env$gsveasy_sample
 )
+genes_abs = GSV_gene_count_list$N_per_million/1000000 * GSV_gene_count_list$env$Bact_CN_gsoil
 
 ## ANOVA for each gene
-anova = auto_aov_fixed(GSV_gene_count_list$N_per_million, ~ pH, GSV_gene_count_list$env)$Results
+anova = auto_aov_fixed(genes_abs, ~ pH, GSV_gene_count_list$env)$Results
 anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
 rownames(anova) = anova$Data
 anova = anova[gene_ontology$Gene,]
@@ -22,14 +23,14 @@ anova$F_value = round(anova$F_value, digits = 2)
 anova$p_value = round(anova$p_value, digits = 4)
 
 ## Save ANOVA results to a Word document
-#gtsave(gt::gt(anova), 'graftM_genes/Figures/anova.docx')
+#gtsave(gt(anova), 'graftM_genes/Figures/anova_qPCR.docx')
 
 ## Sort environment data by pH
 env_sorted = GSV_gene_count_list$env[order(GSV_gene_count_list$env$pH),]
 
 ## Set up color palette and scale gene count data
 my_palette = colorRampPalette(c('white', 'black'))
-df_scaled = t(scale(sqrt(GSV_gene_count_list$N_per_million)))
+df_scaled = t(scale(sqrt(genes_abs)))
 df_scaled = df_scaled[,rownames(env_sorted)]
 colnames(df_scaled) = env_sorted$Hoosfield.ID
 df_scaled = df_scaled[gene_ontology$Gene,]
@@ -58,7 +59,7 @@ Heatmap(
   row_order = rownames(df_scaled),
   column_order = env_sorted$Hoosfield.ID,
   col = my_palette(100),
-  show_column_names = FALSE,
+  show_column_names = F,
   row_split = factor(gene_ontology$Function, levels = unique(gene_ontology$Function)),
   row_title_rot = 0,
   row_title_gp = gpar(fontsize = 10),
