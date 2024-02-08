@@ -1,2 +1,2 @@
 # HF_nitrogen
-Repository for script for Hoosfield nitrogen paper
+Scripts for Hoosfield nitrogen paper
