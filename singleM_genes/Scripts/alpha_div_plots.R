@@ -159,22 +159,30 @@ rm(list = ls(pattern = 'GSV'), sobs, shannon, chao1)
 
 ###############################################################################
 
-env_sorted = env[order(env$pH),]
-df = alpha$Sobs
-df = df[env_sorted$Hoosfield.ID,] %>% drop_na()
-env_sorted = env_sorted[rownames(df),]
-anova = auto_aov_fixed(df, ~ pH, env_sorted)$Results
-anova = anova[anova$Signif != " ",]
+for (i in names(alpha)) {
+  env_sorted = env[order(env$pH),]
+  df = alpha[[i]]
+  df = df[env_sorted$Hoosfield.ID,] %>% drop_na()
+  env_sorted = env_sorted[rownames(df),]
+  anova = auto_aov_fixed(df, ~ pH, env_sorted)$Results
+  anova = anova[anova$Signif != " ",]
+  
+  df = df[,anova$Data]
+  df$pH = env_sorted$pH
+  df_longer = tidyr::pivot_longer(df, cols = c(1:(ncol(df)-1)), names_to = 'Gene', values_to = 'Diversity') %>% 
+    drop_na()
+  
+  gene_order = openxlsx::read.xlsx('graftM_genes/Data/nitrogen_genes.xlsx')
+  gene_order = gene_order[gene_order$Gene %in% colnames(df),]
+  df_longer$Gene = factor(df_longer$Gene, levels = gene_order$Gene)
+  
+  plot = ggplot(df_longer, aes(x = pH, y = Diversity)) +
+    geom_point() +
+    stat_poly_line() +
+    theme_minimal() +
+    facet_wrap(vars(Gene), scales = 'free_y') +
+    ylab('Sobs diversity')
+  
+  ggsave(paste0('singleM_genes/Figures/', i, '.png'), width = 20, height = 15)
+}
 
-df = df[,anova$Data]
-df$pH = env_sorted$pH
-df_longer = tidyr::pivot_longer(df, cols = 1:43, names_to = 'Gene', values_to = 'Diversity') %>% 
-  drop_na()
-
-
-ggplot(df_longer, aes(x = pH, y = Diversity)) +
-  geom_point() +
-  stat_poly_line() +
-  theme_minimal() +
-  facet_wrap(vars(Gene), scales = 'free_y') +
-  ylab('Sobs diversity')
