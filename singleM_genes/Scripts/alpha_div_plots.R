@@ -1,7 +1,6 @@
 library(gsveasyr)
 library(ggridges)
 library(ggplot2)
-library(viridis)
 library(ggpmisc)
 
 env = read.csv('graftM_genes/Data/mag_env_for_shotgun_samples.csv')
@@ -179,10 +178,10 @@ for (i in names(alpha)) {
   plot = ggplot(df_longer, aes(x = pH, y = Diversity)) +
     geom_point() +
     stat_poly_line() +
-    theme_minimal() +
+    theme_minimal(base_size = 15) +
     facet_wrap(vars(Gene), scales = 'free_y') +
-    ylab('Sobs diversity')
+    ylab(paste0(i,' diversity'))
   
-  ggsave(paste0('singleM_genes/Figures/', i, '.png'), width = 20, height = 15)
+  ggsave(paste0('singleM_genes/Figures/', i, '.png'), width = 15, height = 13)
 }
 
