@@ -177,8 +177,7 @@ for (i in names(alpha)) {
   rownames(df) = df$ID
   df = df[sample_list$ID,]
   df = df[,-1]
-  cpt = cpt.meanvar(t(df), method="PELT",
-                    penalty = "Manual", pen.value = 30, minseglen = 30)
+  cpt = cpt.meanvar(t(df), method="PELT", minseglen = 20)
   names(cpt) = colnames(as.data.frame(df))
   points = lapply(cpt, cpts)
   flattened_vector <- unlist(points)
@@ -193,7 +192,7 @@ for (i in names(alpha)) {
 mypal.pH <- colorRampPalette(c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#66c2a5", "#3288bd", "#5e4fa2"))
 
 
-ggplot(result, aes(x = pH, y = Gene, fill = ..x..)) +
+ggplot(result, aes(x = pH, y = Gene, fill = after_stat(x))) +
   geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
   scale_fill_gradientn(colours = mypal.pH(256)) +
   theme_bw() +

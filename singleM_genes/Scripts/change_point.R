@@ -77,8 +77,7 @@ for (i in names(genes)) {
   rownames(df) = df$ID
   df = df[sample_list$ID,]
   df = df[,-1]
-  cpt = cpt.meanvar(t(df), method="PELT",
-                    penalty = "Manual", pen.value = 30, minseglen = 30)
+  cpt = cpt.meanvar(t(df), method="PELT", minseglen = 20)
   names(cpt) = colnames(as.data.frame(df))
   points = lapply(cpt, cpts)
   flattened_vector <- unlist(points)
@@ -87,16 +86,18 @@ for (i in names(genes)) {
   flattened_df = rbind(flattened_df, flattened_df, flattened_df, flattened_df, flattened_df, flattened_df, flattened_df) ## Add scale to tipping points
   flattened_df = merge(flattened_df, pH_list, all.y = T)
   flattened_df$Gene = i
-  result = rbind(result, flattened_df)
+  if (length(flattened_vector) > 0) {
+    result = rbind(result, flattened_df) 
+  }
 }
 
 mypal.pH <- colorRampPalette(c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#66c2a5", "#3288bd", "#5e4fa2"))
 
 gene_order = openxlsx::read.xlsx('graftM_genes/Data/nitrogen_genes.xlsx')
-gene_order = gene_order[gene_order$Gene %in% names(genes),]
+gene_order = gene_order[gene_order$Gene %in% unique(result$Gene),]
 result$Gene = factor(result$Gene, levels = rev(gene_order$Gene))
 
-ggplot(result, aes(x = pH, y = Gene, fill = ..x..)) +
+ggplot(result, aes(x = pH, y = Gene, fill = after_stat(x))) +
   geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
   scale_fill_gradientn(colours = mypal.pH(256)) +
   theme_bw() +

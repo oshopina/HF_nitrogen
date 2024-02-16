@@ -32,20 +32,7 @@ beta_diversity = hellinger_diversity(df_sorted)
 
 ## Change point analysis
 
-plot(beta_diversity['H166',])
-cpt.meanvar(beta_diversity['H166',], method = 'PELT',
-            penalty = "Manual", pen.value = 35, minseglen = 30)
-
-plot(beta_diversity['H106',])
-cpt.meanvar(beta_diversity['H106',], method = 'PELT',
-            penalty = "Manual", pen.value = 35, minseglen = 30)
-
-plot(beta_diversity['H055',])
-cpt.meanvar(beta_diversity['H055',], method = 'PELT',
-            penalty = "Manual", pen.value = 35, minseglen = 30)
-
-cpt = cpt.meanvar(beta_diversity,method="PELT",
-              penalty = "Manual", pen.value = 35, minseglen = 30)
+cpt = cpt.meanvar(beta_diversity, method="PELT", penalty = 'Manual', pen.value = 70, minseglen = 20)
 names(cpt) = rownames(df_sorted)
 
 points = lapply(cpt, cpts)
