@@ -24,7 +24,7 @@ rownames(env) = env$Hoosfield.ID
 env = env[rownames(genes_abs),]
 
 ## According to literature there is 2.0*10-5 mg of bacterial PLFA per cell so calculating the copy number
-plfa_CN = plfa$bacteria/0.00002
+plfa_CN = (plfa$biomass - plfa$fungi)/0.00002
 genes_abs = genes_abs/1000000 * plfa_CN
 
 ## ANOVA for each gene

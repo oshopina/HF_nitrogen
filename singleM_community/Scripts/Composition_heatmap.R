@@ -5,7 +5,7 @@ library(changepoint)
 ################################ Prepare data ##################################
 
 ## Read environmental data
-env <- read.csv('graftM_genes/Data/mag_env_for_shotgun_samples.csv')
+env <- read.csv('graftM_genes/Data/mag_env_no_outliers.csv')
 rownames(env) <- env$Hoosfield.ID
 env <- env[order(env$pH),] ## Sort the way you want the samples to be ordered on heatmap
 
@@ -14,13 +14,8 @@ load_singlem_cmm('singleM_community/Data/otu_condensed_table.csv', env_df = env)
 otu.bac.nr <- otu.bac.nr[env$gsveasy_sample,] ## sort otu table by env table
 rownames(otu.bac.nr) <- rownames(env)
 
-## Perform ANOVA analysis
-# anova <- auto_aov_fixed(otu.bac.nr, ~ pH, env_df = env)$Results
-# sign_otus <- anova[anova$Signif != " ",] ## keep only otus with significant relation with pH
-# df <- otu.bac.nr[, sign_otus$Data]
-# df <- df[, apply(df, 2, max) >= 150]  # Keep columns with max value >= 150 (1.5%)
-# write.csv2(df, 'singleM_community/Data/otus_for_heatmap.csv')
-df = read.csv2('singleM_community/Data/otus_for_heatmap.csv', row.names = 1)
+
+df <- otu.bac.nr[, apply(otu.bac.nr, 2, max) >= 150]  # Keep columns with max value >= 150 (1.5%)
 
 ############################### Change point analysis ##########################
 
@@ -32,7 +27,7 @@ flattened_vector <- unlist(points) ## Flatten the list into a vector
 frequency_table <- table(flattened_vector) ## Compute the frequency of each number
 frequency_df <- data.frame(Number = names(frequency_table), Frequency = as.numeric(frequency_table)) ## Convert frequency_table to a data frame
 ## Fill samples for which change points were not detected with 0s
-missing_data <- data.frame(Number = 1:120) 
+missing_data <- data.frame(Number = 1:117) 
 complete_data <- merge(missing_data, frequency_df, all.x = TRUE)
 complete_data$Frequency[is.na(complete_data$Frequency)] <- 0
 rownames(complete_data) <- rownames(df)
@@ -65,8 +60,8 @@ col_fun <- circlize::colorRamp2(
   c(3.7, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8),
   c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08a", "#e6f598", "#aadda4", "#66a2a5", "#3288ad", "#5e4fa2")
 )
-names_for_pH <- c(3.7, rep("", 18), 4, rep("", 15), 4.5, rep("", 15), 5, rep("", 13), 5.5, rep("", 7), 6, rep("", 10), 
-                  6.5, rep("", 12), 7, rep("", 13), 7.5, rep("", 7), 8.0)
+names_for_pH <- c(3.7, rep("", 16), 4, rep("", 15), 4.5, rep("", 15), 5, rep("", 13), 5.5, rep("", 7), 6, rep("", 10), 
+                  6.5, rep("", 12), 7, rep("", 13), 7.5, rep("", 6), 8.0)
 
 ha <- HeatmapAnnotation(
   pH = env$pH,
@@ -119,3 +114,14 @@ Heatmap(
   right_annotation = ha_f,
   show_heatmap_legend = FALSE
 )
+
+## Perform ANOVA analysis
+anova <- auto_aov_fixed(df, ~ pH, env_df = env)$Results
+anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
+rownames(anova) = anova$Data
+anova = anova[colnames(df),]
+anova$F_value = round(anova$F_value, digits = 2)
+anova$p_value = round(anova$p_value, digits = 4)
+
+## Save ANOVA results to a Word document
+# gtsave(gt::gt(anova), 'singleM_community/Results/anova_ra.docx')

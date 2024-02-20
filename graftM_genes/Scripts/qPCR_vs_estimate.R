@@ -11,6 +11,11 @@ qPCR = read.csv('graftM_genes/Data/N and 16s and ITS.csv', row.names = 1)
 env = read.csv('graftM_genes/Data/mag_env_for_shotgun_samples.csv')
 rownames(env) = env$Hoosfield.ID
 
+env_qpcr = env[rownames(qPCR),]
+model = lm(qPCR$X16s.copynumber_g.dry.soil ~ I(pH^2), env_qpcr)
+
+plot(qPCR$X16s.copynumber_g.dry.soil ~ pH, env_qpcr)
+curve(predict(model, newdata = data.frame(pH = x)), add = T)
 ## Compare qPCR and qPCR estimate
 
 env_sorted = env[order(env$pH),]
