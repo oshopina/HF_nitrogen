@@ -4,7 +4,7 @@ library(changepoint)
 library(gt)
 
 ## Read data
-env <- read.csv('graftM_genes/Data/mag_env_for_shotgun_samples.csv')
+env <- read.csv('graftM_genes/Data/mag_env_no_outliers.csv')
 rownames(env) <- env$Hoosfield.ID
 env <- env[order(env$pH),] ## Sort the way you want the samples to be ordered on heatmap
 env = env[env$Hoosfield.ID != 'H076',]
@@ -26,7 +26,7 @@ hellinger_diversity = function(otu_table) {
 beta_diversity = hellinger_diversity(otu.bac.nr)
 
 ## Change point analysis
-cpt = cpt.meanvar(beta_diversity, method="PELT", penalty = 'Manual', pen.value = 100, minseglen = 20)
+cpt = cpt.meanvar(beta_diversity, method="PELT", minseglen = 20)
 names(cpt) = rownames(otu.bac.nr)
 
 points = lapply(cpt, cpts)
@@ -40,7 +40,7 @@ frequency_table <- table(flattened_vector)
 
 # Convert frequency_table to a data frame
 frequency_df <- data.frame(Number = names(frequency_table), Frequency = as.numeric(frequency_table))
-missing_data = data.frame(Number = 1:119)
+missing_data = data.frame(Number = 1:117)
 complete_data = merge(missing_data, frequency_df, all.x = TRUE)
 complete_data$Frequency[is.na(complete_data$Frequency)] = 0
 rownames(complete_data) = rownames(beta_diversity)
@@ -51,7 +51,7 @@ my_palette = colorRampPalette(c('#100d12', '#980011', '#fe8d2f', '#fff1a2'))
 col_fun = circlize::colorRamp2(c(3.7, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8),
                                c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08a",
                                  "#e6f598", "#aadda4", "#66a2a5", "#3288ad", "#5e4fa2"))
-names_for_pH = c(3.7, rep("", 18), 4, rep("", 15), 4.5, rep("", 15), 5, rep("", 13), 5.5, rep("", 7), 6, rep("", 10), 
+names_for_pH = c(3.7, rep("", 16), 4, rep("", 15), 4.5, rep("", 15), 5, rep("", 13), 5.5, rep("", 7), 6, rep("", 10), 
                  6.5, rep("", 12), 7, rep("", 13), 7.5, rep("", 6), 8.0)
 
 ## Create HeatmapAnnotation
