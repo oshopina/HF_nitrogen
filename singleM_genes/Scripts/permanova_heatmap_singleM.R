@@ -1,4 +1,5 @@
 library(gsveasyr)
+library(ComplexHeatmap)
 
 env = read.csv('graftM_genes/Data/mag_env_no_outliers.csv')
 rownames(env) = env$Hoosfield.ID
@@ -47,9 +48,6 @@ for (i in colnames(cluster_table[,2:3])) {
   heatmap_table[] = lapply(heatmap_table, as.numeric)
   
     heatmap_table = scale(t(heatmap_table))
-  
-  
-  library(ComplexHeatmap)
   
   col_fun = colorRampPalette(c('white', 'yellow', 'brown'))
   gene_order = openxlsx::read.xlsx('graftM_genes/Data/nitrogen_genes.xlsx')
