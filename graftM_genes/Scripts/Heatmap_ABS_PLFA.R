@@ -6,9 +6,17 @@ library(openxlsx)
 ## Read data
 env = read.csv('graftM_genes/Data/mag_env_no_outliers.csv')
 rownames(env) = env$Hoosfield.ID
+env = env[order(env$pH),] ## Sort the way you want the samples to be ordered on heatmap
+env = env[env$Hoosfield.ID != 'H076',]
+
 gene_ontology = read.xlsx('graftM_genes/Data/nitrogen_genes.xlsx')
+
 plfa = read.xlsx('graftM_genes/Data/PLFA_indicators.xlsx')
 rownames(plfa) = plfa$X1
+plfa = plfa[env$Hoosfield.ID,]
+plfa = plfa[!is.na(rowSums(plfa[,-1])),]
+
+
 GSV_gene_count_list = load_graftm_gene_count(
   n_folder = 'graftM_genes/Data/',
   min_num_reads = 1000000,
@@ -16,11 +24,11 @@ GSV_gene_count_list = load_graftm_gene_count(
   env.df = env,
   refColumn = env$gsveasy_sample
 )
-plfa = plfa[GSV_gene_count_list$env$Hoosfield.ID,]
-plfa = plfa[!is.na(rowSums(plfa[,-1])),]
+
 genes_abs = GSV_gene_count_list$N_per_million
 genes_abs = genes_abs[env$Hoosfield.ID,]
 genes_abs = genes_abs[rownames(plfa),]
+
 env = env[rownames(genes_abs),]
 
 ## According to literature there is 2.0*10-5 mg of bacterial PLFA per cell so calculating the copy number
@@ -29,26 +37,46 @@ genes_abs = genes_abs/1000000 * plfa_CN
 
 ############################### Change point analysis ##########################
 
-cpt <- cpt.meanvar(t(genes_abs), method = "PELT", minseglen = 20)
-names(cpt) <- colnames(genes_abs)
-points <- lapply(cpt, cpts)
-points <- Filter(function(x) length(x) > 0, points)
-flattened_vector <- unlist(points) ## Flatten the list into a vector
-frequency_table <- table(flattened_vector) ## Compute the frequency of each number
-frequency_genes_abs <- data.frame(Number = names(frequency_table), Frequency = as.numeric(frequency_table)) ## Convert frequency_table to a data frame
-## Fill samples for which change points were not detected with 0s
-missing_data <- data.frame(Number = 1:104) 
-complete_data <- merge(missing_data, frequency_genes_abs, all.x = TRUE)
-complete_data$Frequency[is.na(complete_data$Frequency)] <- 0
-rownames(complete_data) <- rownames(genes_abs)
+df_mat = genes_abs |> as.matrix()
 
-## Sort environment data by pH
-env_sorted = env[order(env$pH),]
+cpt = geomcp(df_mat)
+plot(cpt)
+
+dist_cpt = cpt.meanvar(
+  distance(cpt),
+  method = "PELT",
+  penalty = 'CROPS',
+  pen.value = c(5, 500)
+)
+
+pen.value.full(dist_cpt)
+dist_var = cpts.full(dist_cpt)
+tail(dist_var)
+plot(dist_cpt, diagnostic = T)
+plot(dist_cpt, ncpts = 1)
+
+ang_cpt = cpt.meanvar(
+  angle(cpt),
+  method = "PELT",
+  penalty = 'CROPS',
+  pen.value = c(5, 500)
+)
+
+pen.value.full(ang_cpt)
+ang_var = cpts.full(ang_cpt)
+tail(ang_var)
+plot(ang_cpt, diagnostic = T)
+plot(ang_cpt, ncpts = 1)
+
+######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
+cp_dist = readline('Number of changepoint for distance data: ') |> as.numeric()
+cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
+
 
 ## Set up color palette and scale gene count data
 my_palette = colorRampPalette(c('white', 'black'))
 genes_abs_scaled = t(scale(sqrt(genes_abs)))
-genes_abs_scaled = genes_abs_scaled[,rownames(env_sorted)]
+genes_abs_scaled = genes_abs_scaled[,rownames(env)]
 genes_abs_scaled = genes_abs_scaled[gene_ontology$Gene,]
 
 ## Define color palette for pH levels and names for pH levels
@@ -61,7 +89,7 @@ names_for_pH = c(3.7, rep("", 12), 4, rep("", 16), 4.5, rep("", 13), 5, rep("", 
 
 # Create HeatmapAnnotation
 ha = HeatmapAnnotation(
-  pH = env_sorted$pH,
+  pH = env$pH,
   empty = anno_empty(border = FALSE, height = unit(2, "mm")),
   pH_labels = anno_text(names_for_pH, rot = 0),
   col = list(pH = col_fun),
@@ -69,21 +97,24 @@ ha = HeatmapAnnotation(
   gp = gpar(col = "black")
 )
 
-ha2 <- HeatmapAnnotation(
-  `change point frequency` = anno_barplot(complete_data$Frequency, bar_width = 1, axis_param = list(side = 'right')),
-  height = unit(2, "cm"),
-  annotation_name_rot = 90,
-  annotation_label = 'Change\n point\n frequency',
-  annotation_name_offset = unit(0.3, 'cm'),
-  annotation_name_side = 'left',
-  annotation_name_gp = gpar(fontsize = 9)
+ha2 = HeatmapAnnotation(
+  change_point_dist = anno_lines(
+    data.set(dist_cpt),
+    axis_param = list(side = 'right', at = c(9, 12))
+  ),
+  change_point_ang = anno_lines(
+    data.set(ang_cpt),
+    axis_param = list(side = 'right', at = c(0.08, 0.18))
+  ),
+  height = unit(3, "cm"), 
+  show_annotation_name = F
 )
 
 # Create heatmap
 Heatmap(
   genes_abs_scaled,
   row_order = rownames(genes_abs_scaled),
-  column_order = env_sorted$Hoosfield.ID,
+  column_order = env$Hoosfield.ID,
   col = my_palette(100),
   show_column_names = FALSE,
   row_split = factor(gene_ontology$Function, levels = unique(gene_ontology$Function)),
@@ -93,6 +124,66 @@ Heatmap(
   top_annotation = ha2,
   show_heatmap_legend = FALSE
 )
+
+
+change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
+
+#creating vertical line for each change point in distance
+for(i in change_points_dist) {
+  decorate_annotation("change_point_dist", {
+    grid.lines(
+      x = unit(c(i, i), 'native'),
+      y = unit(c(min(
+        data.set(dist_cpt)
+      ), max(
+        data.set(dist_cpt)
+      )), 'native'),
+      gp = gpar(col = "red", lwd = 3)
+    )
+  })
+}
+
+#Adding title
+decorate_annotation("change_point_dist", {
+  grid.text(
+    "Mean\nchange\npoint",
+    x = unit(0, "npc"),
+    y = unit(0.5, "npc"),
+    rot = 90,
+    vjust = -0.1, 
+    gp = gpar(fontsize = 9)
+  )
+})
+
+change_points_ang = cpts(ang_cpt, cp_angle)[!is.na(cpts(ang_cpt, cp_angle))]
+
+#creating vertical line for each change point in angle
+for(i in change_points_ang) {
+  decorate_annotation("change_point_ang", {
+    grid.lines(
+      x = unit(c(i, i), 'native'),
+      y = unit(c(min(
+        data.set(ang_cpt)
+      ), max(
+        data.set(ang_cpt)
+      )), 'native'),
+      gp = gpar(col = "red", lwd = 3)
+    )
+  })
+}
+
+#Adding title
+decorate_annotation("change_point_ang", {
+  grid.text(
+    "Variance\nchange\npoint",
+    x = unit(0, "npc"),
+    y = unit(0.5, "npc"),
+    rot = 90,
+    vjust = -0.1,
+    gp = gpar(fontsize = 9)
+  )
+})
+
 
 ## ANOVA for each gene
 anova = auto_aov_fixed(genes_abs, ~ pH, env)$Results
