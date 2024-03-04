@@ -20,8 +20,8 @@ df <- otu.bac.nr[, apply(otu.bac.nr, 2, max) >= 150]  # Keep columns with max va
 
 ############################### Change point analysis ##########################
 
-df_mat = df |> as.matrix() |> t()
-cpt = geomcp(df)
+df_mat = df |> as.matrix()
+cpt = geomcp(df_mat)
 plot(cpt)
 
 dist_cpt = cpt.meanvar(
