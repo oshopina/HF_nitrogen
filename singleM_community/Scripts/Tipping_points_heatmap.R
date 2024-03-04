@@ -1,9 +1,10 @@
 library(gsveasyr)
 library(ComplexHeatmap)
 library(changepoint)
+library(changepoint.geo)
 library(gt)
 
-## Read data
+################################ Read data #####################################
 env <- read.csv('graftM_genes/Data/mag_env_no_outliers.csv')
 rownames(env) <- env$Hoosfield.ID
 env <- env[order(env$pH),] ## Sort the way you want the samples to be ordered on heatmap
@@ -14,6 +15,7 @@ load_singlem_cmm('singleM_community/Data/otu_condensed_table.csv', env_df = env)
 otu.bac.nr <- otu.bac.nr[env$gsveasy_sample,] ## sort otu table by env table
 rownames(otu.bac.nr) <- rownames(env)
 
+## PERMANOVA
 perm = vegan::adonis2(otu.bac.nr ~ pH, env)
 # gtsave(gt(perm), 'singleM_community/Results/PERMANOVA.docx')
 
@@ -25,28 +27,38 @@ hellinger_diversity = function(otu_table) {
 }
 beta_diversity = hellinger_diversity(otu.bac.nr)
 
-## Change point analysis
-cpt = cpt.meanvar(beta_diversity, method="PELT", minseglen = 20)
-names(cpt) = rownames(otu.bac.nr)
+############################### Change point analysis #########################
+cpt = geomcp(beta_diversity)
+plot(cpt)
 
-points = lapply(cpt, cpts)
-points = Filter(function(x) length(x) > 0, points)
+dist_cpt = cpt.meanvar(
+  distance(cpt),
+  method = "PELT",
+  penalty = 'CROPS',
+  pen.value = c(5, 500)
+)
 
-# Flatten the list into a vector
-flattened_vector <- unlist(points)
+pen.value.full(dist_cpt)
+dist_var = cpts.full(dist_cpt)
+tail(dist_var)
+plot(dist_cpt, diagnostic = T)
+plot(dist_cpt, ncpts = 2)
 
-# Compute the frequency of each number
-frequency_table <- table(flattened_vector)
+ang_cpt = cpt.meanvar(
+  angle(cpt),
+  method = "PELT",
+  penalty = 'CROPS',
+  pen.value = c(5, 500)
+)
 
-# Convert frequency_table to a data frame
-frequency_df <- data.frame(Number = names(frequency_table), Frequency = as.numeric(frequency_table))
-missing_data = data.frame(Number = 1:117)
-complete_data = merge(missing_data, frequency_df, all.x = TRUE)
-complete_data$Frequency[is.na(complete_data$Frequency)] = 0
-rownames(complete_data) = rownames(beta_diversity)
+pen.value.full(ang_cpt)
+ang_var = cpts.full(ang_cpt)
+tail(ang_var)
+plot(ang_cpt, diagnostic = T)
+plot(ang_cpt, ncpts = 2)
 
 
-## Build heatmap
+################################ Build heatmap #################################
 my_palette = colorRampPalette(c('#100d12', '#980011', '#fe8d2f', '#fff1a2'))
 col_fun = circlize::colorRamp2(c(3.7, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8),
                                c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08a",
@@ -68,11 +80,19 @@ ha1 = rowAnnotation(pH_labels = anno_text(names_for_pH, rot = 0), pH = env$pH,
                     col = list(pH = col_fun), show_legend = F, 
                     show_annotation_name = F, gp = gpar(col = "black"))
 
-ha2 = HeatmapAnnotation(`change point frequency` = anno_barplot(complete_data$Frequency, bar_width = 1, 
-                                                                axis_param = list(side = 'right')),
-                        height = unit(2, "cm"), annotation_name_rot = 90, annotation_label = 'Change\n point\n frequency',
-                        annotation_name_offset = unit(0.3, 'cm'), annotation_name_side = 'left',
-                        annotation_name_gp = gpar(fontsize = 9))
+ha2 = HeatmapAnnotation(
+  change_point_dist = anno_lines(
+    data.set(dist_cpt),
+    axis_param = list(side = 'right', at = c(9, 12))
+  ),
+  change_point_ang = anno_lines(
+    data.set(ang_cpt),
+    axis_param = list(side = 'right', at = c(0.08, 0.18))
+  ),
+  height = unit(3, "cm"), 
+  show_annotation_name = F
+)
+
 
 Heatmap(
   beta_diversity,
@@ -86,3 +106,61 @@ Heatmap(
   top_annotation = ha2,
   show_heatmap_legend = FALSE
 )
+
+change_points_dist = cpts(dist_cpt, 2)[!is.na(cpts(dist_cpt, 2))]
+
+#creating vertical line for each change point in distance
+for(i in change_points_dist) {
+  decorate_annotation("change_point_dist", {
+    grid.lines(
+      x = unit(c(i, i), 'native'),
+      y = unit(c(min(
+        data.set(dist_cpt)
+      ), max(
+        data.set(dist_cpt)
+      )), 'native'),
+      gp = gpar(col = "red", lwd = 3)
+    )
+  })
+}
+
+#Adding title
+decorate_annotation("change_point_dist", {
+  grid.text(
+    "Mean\nchange\npoint",
+    x = unit(0, "npc"),
+    y = unit(0.5, "npc"),
+    rot = 90,
+    vjust = -0.1, 
+    gp = gpar(fontsize = 9)
+  )
+})
+
+change_points_ang = cpts(ang_cpt, 2)[!is.na(cpts(ang_cpt, 2))]
+
+#creating vertical line for each change point in angle
+for(i in change_points_ang) {
+  decorate_annotation("change_point_ang", {
+    grid.lines(
+      x = unit(c(i, i), 'native'),
+      y = unit(c(min(
+        data.set(ang_cpt)
+      ), max(
+        data.set(ang_cpt)
+      )), 'native'),
+      gp = gpar(col = "red", lwd = 3)
+    )
+  })
+}
+
+#Adding title
+decorate_annotation("change_point_ang", {
+  grid.text(
+    "Variance\nchange\npoint",
+    x = unit(0, "npc"),
+    y = unit(0.5, "npc"),
+    rot = 90,
+    vjust = -0.1,
+    gp = gpar(fontsize = 9)
+  )
+})

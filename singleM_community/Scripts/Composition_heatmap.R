@@ -19,7 +19,7 @@ df <- otu.bac.nr[, apply(otu.bac.nr, 2, max) >= 150]  # Keep columns with max va
 
 ############################### Change point analysis ##########################
 
-cpt <- cpt.meanvar(t(df), method = "PELT", minseglen = 20)
+cpt <- cpt.meanvar(t(df), method = "PELT", minseglen = 15)
 names(cpt) <- colnames(df)
 points <- lapply(cpt, cpts)
 points <- Filter(function(x) length(x) > 0, points)
