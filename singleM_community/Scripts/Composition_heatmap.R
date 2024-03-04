@@ -1,6 +1,7 @@
 library(gsveasyr)
 library(ComplexHeatmap)
 library(changepoint)
+library(changepoint.geo)
 
 ################################ Prepare data ##################################
 
@@ -19,18 +20,36 @@ df <- otu.bac.nr[, apply(otu.bac.nr, 2, max) >= 150]  # Keep columns with max va
 
 ############################### Change point analysis ##########################
 
-cpt <- cpt.meanvar(t(df), method = "PELT", minseglen = 15)
-names(cpt) <- colnames(df)
-points <- lapply(cpt, cpts)
-points <- Filter(function(x) length(x) > 0, points)
-flattened_vector <- unlist(points) ## Flatten the list into a vector
-frequency_table <- table(flattened_vector) ## Compute the frequency of each number
-frequency_df <- data.frame(Number = names(frequency_table), Frequency = as.numeric(frequency_table)) ## Convert frequency_table to a data frame
-## Fill samples for which change points were not detected with 0s
-missing_data <- data.frame(Number = 1:117) 
-complete_data <- merge(missing_data, frequency_df, all.x = TRUE)
-complete_data$Frequency[is.na(complete_data$Frequency)] <- 0
-rownames(complete_data) <- rownames(df)
+df_mat = df |> as.matrix() |> t()
+cpt = geomcp(df)
+plot(cpt)
+
+dist_cpt = cpt.meanvar(
+  distance(cpt),
+  method = "PELT",
+  penalty = 'CROPS',
+  pen.value = c(5, 500)
+)
+
+pen.value.full(dist_cpt)
+dist_var = cpts.full(dist_cpt)
+tail(dist_var)
+plot(dist_cpt, diagnostic = T)
+plot(dist_cpt, ncpts = 1)
+
+ang_cpt = cpt.meanvar(
+  angle(cpt),
+  method = "PELT",
+  penalty = 'CROPS',
+  pen.value = c(5, 500)
+)
+
+pen.value.full(ang_cpt)
+ang_var = cpts.full(ang_cpt)
+tail(ang_var)
+plot(ang_cpt, diagnostic = T)
+plot(ang_cpt, ncpts = 2)
+
 
 ######################## Prepare taxonomy labels for heatmap ##################
 
@@ -86,14 +105,17 @@ ha_f <- rowAnnotation(
 )
 
 ## Create additional annotation for change point frequency
-ha2 <- HeatmapAnnotation(
-  `change point frequency` = anno_barplot(complete_data$Frequency, bar_width = 1, axis_param = list(side = 'right')),
-  height = unit(2, "cm"),
-  annotation_name_rot = 90,
-  annotation_label = 'Change\n point\n frequency',
-  annotation_name_offset = unit(0.3, 'cm'),
-  annotation_name_side = 'left',
-  annotation_name_gp = gpar(fontsize = 9)
+ha2 = HeatmapAnnotation(
+  change_point_dist = anno_lines(
+    data.set(dist_cpt),
+    axis_param = list(side = 'right', at = c(9, 12))
+  ),
+  change_point_ang = anno_lines(
+    data.set(ang_cpt),
+    axis_param = list(side = 'right', at = c(0.08, 0.18))
+  ),
+  height = unit(3, "cm"), 
+  show_annotation_name = F
 )
 
 ## Create Heatmap
@@ -114,6 +136,67 @@ Heatmap(
   right_annotation = ha_f,
   show_heatmap_legend = FALSE
 )
+
+
+
+change_points_dist = cpts(dist_cpt, 1)[!is.na(cpts(dist_cpt, 1))]
+
+#creating vertical line for each change point in distance
+for(i in change_points_dist) {
+  decorate_annotation("change_point_dist", {
+    grid.lines(
+      x = unit(c(i, i), 'native'),
+      y = unit(c(min(
+        data.set(dist_cpt)
+      ), max(
+        data.set(dist_cpt)
+      )), 'native'),
+      gp = gpar(col = "red", lwd = 3)
+    )
+  })
+}
+
+#Adding title
+decorate_annotation("change_point_dist", {
+  grid.text(
+    "Mean\nchange\npoint",
+    x = unit(0, "npc"),
+    y = unit(0.5, "npc"),
+    rot = 90,
+    vjust = -0.1, 
+    gp = gpar(fontsize = 9)
+  )
+})
+
+change_points_ang = cpts(ang_cpt, 2)[!is.na(cpts(ang_cpt, 2))]
+
+#creating vertical line for each change point in angle
+for(i in change_points_ang) {
+  decorate_annotation("change_point_ang", {
+    grid.lines(
+      x = unit(c(i, i), 'native'),
+      y = unit(c(min(
+        data.set(ang_cpt)
+      ), max(
+        data.set(ang_cpt)
+      )), 'native'),
+      gp = gpar(col = "red", lwd = 3)
+    )
+  })
+}
+
+#Adding title
+decorate_annotation("change_point_ang", {
+  grid.text(
+    "Variance\nchange\npoint",
+    x = unit(0, "npc"),
+    y = unit(0.5, "npc"),
+    rot = 90,
+    vjust = -0.1,
+    gp = gpar(fontsize = 9)
+  )
+})
+
 
 ## Perform ANOVA analysis
 anova <- auto_aov_fixed(df, ~ pH, env_df = env)$Results
