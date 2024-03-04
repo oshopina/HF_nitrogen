@@ -43,6 +43,8 @@ dist_var = cpts.full(dist_cpt)
 tail(dist_var)
 plot(dist_cpt, diagnostic = T)
 plot(dist_cpt, ncpts = 2)
+######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
+cp_dist = readline('Number of changepoint for distance data: ') |> as.numeric()
 
 ang_cpt = cpt.meanvar(
   angle(cpt),
@@ -56,6 +58,8 @@ ang_var = cpts.full(ang_cpt)
 tail(ang_var)
 plot(ang_cpt, diagnostic = T)
 plot(ang_cpt, ncpts = 2)
+######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
+cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
 
 ################################ Build heatmap #################################
@@ -83,11 +87,11 @@ ha1 = rowAnnotation(pH_labels = anno_text(names_for_pH, rot = 0), pH = env$pH,
 ha2 = HeatmapAnnotation(
   change_point_dist = anno_lines(
     data.set(dist_cpt),
-    axis_param = list(side = 'right', at = c(9, 12))
+    axis = F
   ),
   change_point_ang = anno_lines(
     data.set(ang_cpt),
-    axis_param = list(side = 'right', at = c(0.08, 0.18))
+    axis = F
   ),
   height = unit(3, "cm"), 
   show_annotation_name = F

@@ -31,25 +31,41 @@ beta_diversity = hellinger_diversity(df_sorted)
 
 ## Change point analysis
 
-cpt = cpt.meanvar(beta_diversity, method="PELT", minseglen = 20)
-names(cpt) = rownames(df_sorted)
+df_mat = beta_diversity |> as.matrix()
 
-points = lapply(cpt, cpts)
-points = Filter(function(x) length(x) > 0, points)
+cpt = geomcp(df_mat)
+plot(cpt)
 
-# Flatten the list into a vector
-flattened_vector <- unlist(points)
+dist_cpt = cpt.meanvar(
+  distance(cpt),
+  method = "PELT",
+  penalty = 'CROPS',
+  pen.value = c(5, 500)
+)
 
-# Compute the frequency of each number
-frequency_table <- table(flattened_vector)
+pen.value.full(dist_cpt)
+dist_var = cpts.full(dist_cpt)
+tail(dist_var)
+plot(dist_cpt, diagnostic = T)
+plot(dist_cpt, ncpts = 2)
+######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
+cp_dist = readline('Number of changepoint for distance data: ') |> as.numeric()
 
-# Convert frequency_table to a data frame
-frequency_df <- data.frame(Number = names(frequency_table), Frequency = as.numeric(frequency_table))
-missing_data = data.frame(Number = 1:117)
-complete_data = merge(missing_data, frequency_df, all.x = TRUE)
-complete_data$Frequency[is.na(complete_data$Frequency)] = 0
-rownames(complete_data) = rownames(beta_diversity)
 
+ang_cpt = cpt.meanvar(
+  angle(cpt),
+  method = "PELT",
+  penalty = 'CROPS',
+  pen.value = c(5, 500)
+)
+
+pen.value.full(ang_cpt)
+ang_var = cpts.full(ang_cpt)
+tail(ang_var)
+plot(ang_cpt, diagnostic = T)
+plot(ang_cpt, ncpts = 2)
+######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
+cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
 ## Build heatmap
 my_palette = colorRampPalette(c('#100d12', '#980011', '#fe8d2f', '#fff1a2'))
@@ -73,11 +89,19 @@ ha1 = rowAnnotation(pH_labels = anno_text(names_for_pH, rot = 0), pH = env_sorte
                     col = list(pH = col_fun), show_legend = F, 
                     show_annotation_name = F, gp = gpar(col = "black"))
 
-ha2 = HeatmapAnnotation(`change point frequency` = anno_barplot(complete_data$Frequency, bar_width = 1, 
-                                                                axis_param = list(side = 'right')),
-                        height = unit(2, "cm"), annotation_name_rot = 90, annotation_label = 'Change\n point\n frequency',
-                        annotation_name_offset = unit(0.3, 'cm'), annotation_name_side = 'left',
-                        annotation_name_gp = gpar(fontsize = 9))
+
+ha2 = HeatmapAnnotation(
+  change_point_dist = anno_lines(
+    data.set(dist_cpt),
+    axis = F
+  ),
+  change_point_ang = anno_lines(
+    data.set(ang_cpt),
+    axis = F
+  ),
+  height = unit(3, "cm"), 
+  show_annotation_name = F
+)
 
 Heatmap(
   beta_diversity,
@@ -91,3 +115,62 @@ Heatmap(
   top_annotation = ha2,
   show_heatmap_legend = FALSE
 )
+
+change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
+
+#creating vertical line for each change point in distance
+for(i in change_points_dist) {
+  decorate_annotation("change_point_dist", {
+    grid.lines(
+      x = unit(c(i, i), 'native'),
+      y = unit(c(min(
+        data.set(dist_cpt)
+      ), max(
+        data.set(dist_cpt)
+      )), 'native'),
+      gp = gpar(col = "red", lwd = 3)
+    )
+  })
+}
+
+#Adding title
+decorate_annotation("change_point_dist", {
+  grid.text(
+    "Mean\nchange\npoint",
+    x = unit(0, "npc"),
+    y = unit(0.5, "npc"),
+    rot = 90,
+    vjust = -0.1, 
+    gp = gpar(fontsize = 9)
+  )
+})
+
+change_points_ang = cpts(ang_cpt, cp_angle)[!is.na(cpts(ang_cpt, cp_angle))]
+
+#creating vertical line for each change point in angle
+for(i in change_points_ang) {
+  decorate_annotation("change_point_ang", {
+    grid.lines(
+      x = unit(c(i, i), 'native'),
+      y = unit(c(min(
+        data.set(ang_cpt)
+      ), max(
+        data.set(ang_cpt)
+      )), 'native'),
+      gp = gpar(col = "red", lwd = 3)
+    )
+  })
+}
+
+#Adding title
+decorate_annotation("change_point_ang", {
+  grid.text(
+    "Variance\nchange\npoint",
+    x = unit(0, "npc"),
+    y = unit(0.5, "npc"),
+    rot = 90,
+    vjust = -0.1,
+    gp = gpar(fontsize = 9)
+  )
+})
+
