@@ -16,10 +16,14 @@ for (i in names(GSV_rarefied_gsvtables50)) {
   level = rowSums(GSV_rarefied_gsvtables50[[i]])[1]
   r_levels[i] = level
 }
+names(r_levels)[which(names(r_levels) == 'narG')] = 'narG_nxrA'
+names(r_levels)[which(names(r_levels) == 'narH')] = 'narH_nxrB'
+
+rm(GSV_rarefied_gsvtables50)
 ################# Create separate tables for each gene #########################
 all_tables = mget(ls(pattern = 'GSV'))
-rm(list = ls(pattern = 'GSV'))
 genes = colnames(all_tables$GSV_alpha_div_cluster100$C_shannon)
+rm(list = ls(pattern = 'GSV'))
 
 alpha_by_gene = list()
 for (j in genes) {
@@ -36,7 +40,7 @@ for (j in genes) {
 ################# Create a plot for each gene ##################################
 
 gene_plots = list()
-for (j in genes) {
+for (j in names(alpha_by_gene)) {
   print(j)
   df = alpha_by_gene[[j]]
   raref = r_levels[j]
@@ -106,9 +110,9 @@ gene_order = gene_order[gene_order$Gene %in% names(gene_plots), ]
 gene_plots = gene_plots[gene_order$Gene]
 
 combined_plot = wrap_plots(gene_plots, ncol = 7)
-# ggsave('singleM_genes/Figures/all_levels.png', combined_plot, width = 21, height = 21)
+# ggsave('singleM_genes/Figures/all_levels.png', combined_plot, width = 25, height = 21)
 
-# pdf('singleM_genes/Figures/all_levls.pdf')
+# pdf('singleM_genes/Figures/all_levels.pdf')
 # for (i in seq_along(gene_plots)) {
 #   print(gene_plots[[i]])
 # }
