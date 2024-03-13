@@ -40,6 +40,7 @@ for (j in genes) {
 ################# Create a plot for each gene ##################################
 
 gene_plots = list()
+gene_cor = c()
 for (j in names(alpha_by_gene)) {
   print(j)
   df = alpha_by_gene[[j]]
@@ -72,6 +73,9 @@ for (j in names(alpha_by_gene)) {
         # Calculate the correlation coefficient and store it in the matrix
         cor_matrix[group1, group2] <-
           cor(values1[['y']], values2[['y']])
+        if(is.na(cor_matrix[group1, group2])) {
+          cor_matrix[group1, group2] = 0
+        }
         cor_matrix[group2, group1] <-
           cor_matrix[group1, group2]  # for symmetry
       }
@@ -100,6 +104,8 @@ for (j in names(alpha_by_gene)) {
       ggtitle(paste0(j, ' (',raref, ')')) +
       ylab('Shannon')
     
+    cor_value = mean(cor_matrix)
+    gene_cor[j] = cor_value
     gene_plots[[j]] = p2
   }
 }
@@ -117,4 +123,12 @@ combined_plot = wrap_plots(gene_plots, ncol = 7)
 #   print(gene_plots[[i]])
 # }
 # dev.off()
+
+library(ggpmisc)
+df = data.frame(Correlation = gene_cor[gene_order$Gene], Rarefraction = r_levels[gene_order$Gene])
+ggplot(df, aes(x = Correlation, y = Rarefraction)) +
+  geom_point(size = 2.5) +
+  stat_poly_eq(use_label(c('R2', 'P'))) +
+  theme_minimal()
+  
             
