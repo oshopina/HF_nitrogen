@@ -86,7 +86,7 @@ anova$Signif <- gsub("\\*+", "*", anova$Signif)
 ############################## Heatmap ########################################
 
 ## Scale data for heatmap
-df_scaled <- t(scale(sqrt(log2(df))))
+df_scaled <- t(scale(sqrt(df)))
 medians = apply(df, 2, function(x){
   median(x)
 })

@@ -2,6 +2,7 @@ library(gsveasyr)
 library(ComplexHeatmap)
 library(gt)
 library(changepoint)
+library(changepoint.geo)
 
 ## Read data
 env = read.csv('graftM_genes/Data/mag_env_no_outliers.csv')
@@ -38,7 +39,7 @@ pen.value.full(dist_cpt)
 dist_var = cpts.full(dist_cpt)
 tail(dist_var)
 plot(dist_cpt, diagnostic = T)
-plot(dist_cpt, ncpts = 1)
+plot(dist_cpt, ncpts = 3)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_dist = readline('Number of changepoint for distance data: ') |> as.numeric()
 
@@ -53,15 +54,33 @@ pen.value.full(ang_cpt)
 ang_var = cpts.full(ang_cpt)
 tail(ang_var)
 plot(ang_cpt, diagnostic = T)
-plot(ang_cpt, ncpts = 2)
+plot(ang_cpt, ncpts = 1)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
+## ANOVA for each gene
+anova = auto_aov_fixed(df, ~ pH, env)$Results
+anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
+rownames(anova) = anova$Data
+anova = anova[gene_ontology$Gene,]
+anova$F_value = round(anova$F_value, digits = 2)
+anova$p_value = round(anova$p_value, digits = 4)
+anova$Signif <- gsub("\\*+", "*", anova$Signif)
+
+## Save ANOVA results to a Word document
+#gtsave(gt::gt(anova), 'graftM_genes/Results/anova_ra.docx')
+
+################################# Heatmap #####################################
 ## Set up color palette and scale gene count data
 my_palette = colorRampPalette(c('white', 'black'))
-df_scaled = t(scale(sqrt(df)))
+df_scaled = t(scale(sqrt(log2(df + 1))))
 df_scaled = df_scaled[,rownames(env)]
 df_scaled = df_scaled[gene_ontology$Gene,]
+
+medians = apply(df[,gene_ontology$Gene], 2, function(x){
+  median(x)
+})
+median_col = circlize::colorRamp2(c(0, 500), c('white', 'aquamarine4'))
 
 ## Define color palette for pH levels and names for pH levels
 col_fun = circlize::colorRamp2(
@@ -94,6 +113,20 @@ ha2 = HeatmapAnnotation(
   show_annotation_name = F
 )
 
+ha_c <- rowAnnotation(
+  Median = medians,
+  col = list(Median = median_col),
+  show_legend = F, 
+  show_annotation_name = F
+)
+
+ha_f <- rowAnnotation(
+  anova = anno_text(anova$Signif)
+)
+
+lgd = Legend(title = 'Median frequency', col_fun = median_col, at = c(0, 200, 500),
+             direction = 'horizontal')
+
 # Create heatmap
 Heatmap(
   df_scaled,
@@ -106,10 +139,13 @@ Heatmap(
   row_title_gp = gpar(fontsize = 10),
   bottom_annotation = ha,
   top_annotation = ha2,
+  left_annotation = ha_c,
+  right_annotation = ha_f,
   show_heatmap_legend = FALSE
 )
 
-change_points_dist = cpts(dist_cpt, 1)[!is.na(cpts(dist_cpt, 1))]
+draw(lgd, x = unit(0.10, "npc"), y = unit(0.95, "npc"))
+change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
 
 #creating vertical line for each change point in distance
 for(i in change_points_dist) {
@@ -138,7 +174,7 @@ decorate_annotation("change_point_dist", {
   )
 })
 
-change_points_ang = cpts(ang_cpt, 2)[!is.na(cpts(ang_cpt, 2))]
+change_points_ang = cpts(ang_cpt, cp_angle)[!is.na(cpts(ang_cpt, cp_angle))]
 
 #creating vertical line for each change point in angle
 for(i in change_points_ang) {
@@ -168,13 +204,4 @@ decorate_annotation("change_point_ang", {
 })
 
 
-## ANOVA for each gene
-anova = auto_aov_fixed(df, ~ pH, env)$Results
-anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
-rownames(anova) = anova$Data
-anova = anova[gene_ontology$Gene,]
-anova$F_value = round(anova$F_value, digits = 2)
-anova$p_value = round(anova$p_value, digits = 4)
 
-## Save ANOVA results to a Word document
-#gtsave(gt::gt(anova), 'graftM_genes/Results/anova_ra.docx')

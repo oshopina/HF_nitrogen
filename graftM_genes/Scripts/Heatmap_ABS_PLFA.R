@@ -13,6 +13,7 @@ gene_ontology = read.xlsx('graftM_genes/Data/nitrogen_genes.xlsx')
 
 plfa = read.xlsx('graftM_genes/Data/PLFA_indicators.xlsx')
 rownames(plfa) = plfa$X1
+plfa = plfa[plfa$X1 != 'H097',]
 plfa = plfa[env$Hoosfield.ID,]
 plfa = plfa[!is.na(rowSums(plfa[,-1])),]
 
@@ -37,8 +38,7 @@ genes_abs = genes_abs/1000000 * plfa_CN
 
 ############################### Change point analysis ##########################
 
-df_mat = genes_abs |> as.matrix()
-
+df_mat = sqrt(log2(genes_abs + 1)) |> as.matrix()
 cpt = geomcp(df_mat)
 plot(cpt)
 
@@ -53,7 +53,7 @@ pen.value.full(dist_cpt)
 dist_var = cpts.full(dist_cpt)
 tail(dist_var)
 plot(dist_cpt, diagnostic = T)
-plot(dist_cpt, ncpts = 1)
+plot(dist_cpt, ncpts = 2)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_dist = readline('Number of changepoint for distance data: ') |> as.numeric()
 
@@ -68,24 +68,41 @@ pen.value.full(ang_cpt)
 ang_var = cpts.full(ang_cpt)
 tail(ang_var)
 plot(ang_cpt, diagnostic = T)
-plot(ang_cpt, ncpts = 1)
+plot(ang_cpt, ncpts = 2)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
+## ANOVA for each gene
+anova = auto_aov_fixed(genes_abs, ~ pH, env)$Results
+anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
+rownames(anova) = anova$Data
+anova = anova[gene_ontology$Gene,]
+anova$F_value = round(anova$F_value, digits = 2)
+anova$p_value = round(anova$p_value, digits = 4)
+anova$Signif <- gsub("\\*+", "*", anova$Signif)
 
+## Save ANOVA results to a Word document
+#gtsave(gt::gt(anova), 'graftM_genes/Results/anova_ra.docx')
+
+################################# Heatmap #####################################
 ## Set up color palette and scale gene count data
 my_palette = colorRampPalette(c('white', 'black'))
-genes_abs_scaled = t(scale(sqrt(genes_abs)))
+genes_abs_scaled = t(scale(sqrt(log2(genes_abs + 1))))
 genes_abs_scaled = genes_abs_scaled[,rownames(env)]
 genes_abs_scaled = genes_abs_scaled[gene_ontology$Gene,]
 
+medians = apply(genes_abs[,gene_ontology$Gene], 2, function(x){
+  median(x)
+})
+median_col = circlize::colorRamp2(c(0, 80), c('white', 'aquamarine4'))
+
 ## Define color palette for pH levels and names for pH levels
-col_fun = circlize::colorRamp2(
+col_fun <- circlize::colorRamp2(
   c(3.7, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8),
   c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08a", "#e6f598", "#aadda4", "#66a2a5", "#3288ad", "#5e4fa2")
 )
-names_for_pH = c(3.7, rep("", 12), 4, rep("", 16), 4.5, rep("", 13), 5, rep("", 8), 5.5, rep("", 6), 6, rep("", 8), 
-                 6.5, rep("", 12), 7, rep("", 13), 7.5, rep("", 6), 8.0)
+names_for_pH = c(3.7, rep("", 11), 4, rep("", 15), 4.5, rep("", 13), 5, rep("", 10), 5.5, rep("", 6), 6, rep("", 8), 
+                 6.5, rep("", 12), 7, rep("", 13), 7.5, rep("", 5), 8.0)
 
 # Create HeatmapAnnotation
 ha = HeatmapAnnotation(
@@ -96,7 +113,6 @@ ha = HeatmapAnnotation(
   show_legend = FALSE,
   gp = gpar(col = "black")
 )
-
 
 ha2 = HeatmapAnnotation(
   change_point_dist = anno_lines(
@@ -111,6 +127,20 @@ ha2 = HeatmapAnnotation(
   show_annotation_name = F
 )
 
+ha_c <- rowAnnotation(
+  Median = medians,
+  col = list(Median = median_col),
+  show_legend = F, 
+  show_annotation_name = F
+)
+
+ha_f <- rowAnnotation(
+  anova = anno_text(anova$Signif)
+)
+
+lgd = Legend(title = 'Median frequency', col_fun = median_col, at = c(0, 30, 80),
+             direction = 'horizontal')
+
 # Create heatmap
 Heatmap(
   genes_abs_scaled,
@@ -123,10 +153,12 @@ Heatmap(
   row_title_gp = gpar(fontsize = 10),
   bottom_annotation = ha,
   top_annotation = ha2,
+  left_annotation = ha_c,
+  right_annotation = ha_f,
   show_heatmap_legend = FALSE
 )
 
-
+draw(lgd, x = unit(0.10, "npc"), y = unit(0.95, "npc"))
 change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
 
 #creating vertical line for each change point in distance
@@ -186,15 +218,4 @@ decorate_annotation("change_point_ang", {
 })
 
 
-## ANOVA for each gene
-anova = auto_aov_fixed(genes_abs, ~ pH, env)$Results
-anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
-rownames(anova) = anova$Data
-anova = anova[gene_ontology$Gene,]
-anova$F_value = round(anova$F_value, digits = 2)
-anova$p_value = round(anova$p_value, digits = 4)
 
-## Save ANOVA results to a Word document
-# gtsave(gt::gt(anova), 'graftM_genes/Results/anova_PLFA.docx')
-
-# write.xlsx(genes_abs, 'graftM_genes/Results/PLFA_ABS_counts.xlsx', rowNames = T)

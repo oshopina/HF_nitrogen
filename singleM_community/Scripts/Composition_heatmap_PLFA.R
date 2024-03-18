@@ -35,8 +35,7 @@ df.abs <- otu.bac.nr.abs[, colnames(df)]
 
 ############################### Change point analysis ##########################
 
-
-df_mat = sqrt(log2(df.abs + 1)) |> as.matrix()
+df_mat = sqrt(df.abs) |> as.matrix()
 cpt = geomcp(df_mat)
 plot(cpt)
 
@@ -51,7 +50,7 @@ pen.value.full(dist_cpt)
 dist_var = cpts.full(dist_cpt)
 tail(dist_var)
 plot(dist_cpt, diagnostic = T)
-plot(dist_cpt, ncpts = 4)
+plot(dist_cpt, ncpts = 5)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_dist = readline('Number of changepoint for distance data: ') |> as.numeric()
 
@@ -66,7 +65,7 @@ pen.value.full(ang_cpt)
 ang_var = cpts.full(ang_cpt)
 tail(ang_var)
 plot(ang_cpt, diagnostic = T)
-plot(ang_cpt, ncpts = 2)
+plot(ang_cpt, ncpts = 3)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
@@ -104,7 +103,7 @@ anova$Signif <- gsub("\\*+", "*", anova$Signif)
 ############################## Heatmap ########################################
 
 ## Scale data for heatmap
-df.abs_scaled <- t(scale(sqrt(log2(df.abs))))
+df.abs_scaled <- t(scale(sqrt(df.abs)))
 medians = apply(df.abs, 2, function(x){
   median(x)
 })
