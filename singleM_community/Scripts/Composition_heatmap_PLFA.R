@@ -12,6 +12,7 @@ env <- env[order(env$pH),] ## Sort the way you want the samples to be ordered on
 
 plfa = openxlsx::read.xlsx('graftM_genes/Data/PLFA_indicators.xlsx')
 rownames(plfa) = plfa$X1
+plfa = plfa[plfa$X1 != 'H097',]
 plfa = plfa[rownames(env),]
 
 ## Load singleM community data
@@ -35,7 +36,7 @@ df.abs <- otu.bac.nr.abs[, colnames(df)]
 ############################### Change point analysis ##########################
 
 
-df_mat = df.abs |> as.matrix()
+df_mat = sqrt(log2(df.abs + 1)) |> as.matrix()
 cpt = geomcp(df_mat)
 plot(cpt)
 
@@ -50,7 +51,7 @@ pen.value.full(dist_cpt)
 dist_var = cpts.full(dist_cpt)
 tail(dist_var)
 plot(dist_cpt, diagnostic = T)
-plot(dist_cpt, ncpts = 2)
+plot(dist_cpt, ncpts = 4)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_dist = readline('Number of changepoint for distance data: ') |> as.numeric()
 
@@ -88,17 +89,32 @@ tax$otu_label <- paste0('[', substring(tax$OTU, 2), ']')
 
 df.abs <- df.abs[, tax$OTU]
 
+## Perform ANOVA analysis
+anova <- auto_aov_fixed(df.abs, ~ pH, env_df = env)$Results
+anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
+rownames(anova) = anova$Data
+anova = anova[colnames(df.abs),]
+anova$F_value = round(anova$F_value, digits = 2)
+anova$p_value = round(anova$p_value, digits = 4)
+anova$Signif <- gsub("\\*+", "*", anova$Signif)
+
+## Save ANOVA results to a Word document
+# gtsave(gt::gt(anova), 'singleM_community/Results/anova_ra.docx')
+
 ############################## Heatmap ########################################
 
 ## Scale data for heatmap
-df.abs_scaled <- t(scale(sqrt(df.abs)))
+df.abs_scaled <- t(scale(sqrt(log2(df.abs))))
+medians = apply(df.abs, 2, function(x){
+  median(x)
+})
 
 ## Create bottom heatmap annotation (pH ribbon)
 col_fun <- circlize::colorRamp2(
   c(3.7, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8),
   c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08a", "#e6f598", "#aadda4", "#66a2a5", "#3288ad", "#5e4fa2")
 )
-names_for_pH = c(3.7, rep("", 11), 4, rep("", 16), 4.5, rep("", 13), 5, rep("", 10), 5.5, rep("", 6), 6, rep("", 8), 
+names_for_pH = c(3.7, rep("", 11), 4, rep("", 15), 4.5, rep("", 13), 5, rep("", 10), 5.5, rep("", 6), 6, rep("", 8), 
                  6.5, rep("", 12), 7, rep("", 13), 7.5, rep("", 5), 8.0)
 
 ha <- HeatmapAnnotation(
@@ -112,16 +128,27 @@ ha <- HeatmapAnnotation(
 
 ## Create taxonomy annotations
 
+median_col = circlize::colorRamp2(c(0, 11600000), c('white', 'aquamarine4'))
+
 ha_c <- rowAnnotation(
   phylum = anno_text(tax$phylum_label, gp = gpar(fontface = 'bold')),
   class = anno_text(tax$class_label),
-  order = anno_text(tax$order_label)
+  order = anno_text(tax$order_label),
+  Median = medians,
+  col = list(Median = median_col),
+  show_legend = F, 
+  show_annotation_name = F
 )
 
+lgd = Legend(title = 'Median abundance', col_fun = median_col, at = c(0, 11600000),
+             direction = 'horizontal')
+
 ha_f <- rowAnnotation(
+  anova = anno_text(anova$Signif),
   otu = anno_text(tax$otu_label),
   family = anno_text(tax$f_g_label)
 )
+
 
 ## Create additional annotation for change point frequency
 ha2 = HeatmapAnnotation(
@@ -145,7 +172,7 @@ Heatmap(
   row_order = rownames(df.abs_scaled),
   column_order = env$Hoosfield.ID,
   col = my_palette(100),
-  show_column_names = F,
+  show_column_names = FALSE,
   show_row_names = FALSE,
   row_title = NULL,
   row_split = tax$Phylum,
@@ -156,8 +183,8 @@ Heatmap(
   show_heatmap_legend = FALSE
 )
 
-
-change_points_dist = cpts(dist_cpt, 2)[!is.na(cpts(dist_cpt, 2))]
+draw(lgd, x = unit(0.25, "npc"), y = unit(0.95, "npc"))
+change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
 
 #creating vertical line for each change point in distance
 for(i in change_points_dist) {
@@ -186,7 +213,7 @@ decorate_annotation("change_point_dist", {
   )
 })
 
-change_points_ang = cpts(ang_cpt, 2)[!is.na(cpts(ang_cpt, 2))]
+change_points_ang = cpts(ang_cpt, cp_angle)[!is.na(cpts(ang_cpt, cp_angle))]
 
 #creating vertical line for each change point in angle
 for(i in change_points_ang) {
@@ -217,13 +244,3 @@ decorate_annotation("change_point_ang", {
 
 
 
-## Perform ANOVA analysis
-anova <- auto_aov_fixed(df.abs, ~ pH, env_df = env)$Results
-anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
-rownames(anova) = anova$Data
-anova = anova[colnames(df.abs),]
-anova$F_value = round(anova$F_value, digits = 2)
-anova$p_value = round(anova$p_value, digits = 4)
-
-## Save ANOVA results to a Word document
-# gtsave(gt::gt(anova), 'singleM_community/Results/anova_ABS.docx')

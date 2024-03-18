@@ -15,7 +15,6 @@ load_singlem_cmm('singleM_community/Data/otu_condensed_table.csv', env_df = env)
 otu.bac.nr <- otu.bac.nr[env$gsveasy_sample,] ## sort otu table by env table
 rownames(otu.bac.nr) <- rownames(env)
 
-
 df <- otu.bac.nr[, apply(otu.bac.nr, 2, max) >= 150]  # Keep columns with max value >= 150 (1.5%)
 
 ############################### Change point analysis ##########################
@@ -54,7 +53,6 @@ plot(ang_cpt, ncpts = 2)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
-
 ######################## Prepare taxonomy labels for heatmap ##################
 
 tax <- taxonomy.all[colnames(df),]
@@ -73,10 +71,25 @@ tax$otu_label <- paste0('[', substring(tax$OTU, 2), ']')
 
 df <- df[, tax$OTU]
 
+## Perform ANOVA analysis
+anova <- auto_aov_fixed(df, ~ pH, env_df = env)$Results
+anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
+rownames(anova) = anova$Data
+anova = anova[colnames(df),]
+anova$F_value = round(anova$F_value, digits = 2)
+anova$p_value = round(anova$p_value, digits = 4)
+anova$Signif <- gsub("\\*+", "*", anova$Signif)
+
+## Save ANOVA results to a Word document
+# gtsave(gt::gt(anova), 'singleM_community/Results/anova_ra.docx')
+
 ############################## Heatmap ########################################
 
 ## Scale data for heatmap
-df_scaled <- t(scale(sqrt(df)))
+df_scaled <- t(scale(sqrt(log2(df))))
+medians = apply(df, 2, function(x){
+  median(x)
+})
 
 ## Create bottom heatmap annotation (pH ribbon)
 col_fun <- circlize::colorRamp2(
@@ -97,16 +110,27 @@ ha <- HeatmapAnnotation(
 
 ## Create taxonomy annotations
 
+median_col = circlize::colorRamp2(c(0, 300), c('white', 'aquamarine4'))
+
 ha_c <- rowAnnotation(
   phylum = anno_text(tax$phylum_label, gp = gpar(fontface = 'bold')),
   class = anno_text(tax$class_label),
-  order = anno_text(tax$order_label)
+  order = anno_text(tax$order_label),
+  Median = medians,
+  col = list(Median = median_col),
+  show_legend = F, 
+  show_annotation_name = F
 )
 
+lgd = Legend(title = 'Median abundance', col_fun = median_col, at = c(0, 100, 200, 300),
+             direction = 'horizontal')
+
 ha_f <- rowAnnotation(
+  anova = anno_text(anova$Signif),
   otu = anno_text(tax$otu_label),
   family = anno_text(tax$f_g_label)
 )
+
 
 ## Create additional annotation for change point frequency
 ha2 = HeatmapAnnotation(
@@ -141,8 +165,7 @@ Heatmap(
   show_heatmap_legend = FALSE
 )
 
-
-
+draw(lgd, x = unit(0.25, "npc"), y = unit(0.95, "npc"))
 change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
 
 #creating vertical line for each change point in distance
@@ -202,13 +225,4 @@ decorate_annotation("change_point_ang", {
 })
 
 
-## Perform ANOVA analysis
-anova <- auto_aov_fixed(df, ~ pH, env_df = env)$Results
-anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
-rownames(anova) = anova$Data
-anova = anova[colnames(df),]
-anova$F_value = round(anova$F_value, digits = 2)
-anova$p_value = round(anova$p_value, digits = 4)
 
-## Save ANOVA results to a Word document
-# gtsave(gt::gt(anova), 'singleM_community/Results/anova_ra.docx')
