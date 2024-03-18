@@ -76,8 +76,8 @@ for (v in genes) {
       }, error = function(e) {
         # Handle the error and set the matrix elements to 1
         cat("Error occurred:", conditionMessage(e), "\n")
-        cor_matrix[i, j] <<- 1
-        cor_matrix[j, i] <<- 1
+        cor_matrix[i, j] <<- 0
+        cor_matrix[j, i] <<- 0
       })
     }
   }

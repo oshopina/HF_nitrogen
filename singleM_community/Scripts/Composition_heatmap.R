@@ -143,7 +143,7 @@ Heatmap(
 
 
 
-change_points_dist = cpts(dist_cpt, 1)[!is.na(cpts(dist_cpt, 1))]
+change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
 
 #creating vertical line for each change point in distance
 for(i in change_points_dist) {
@@ -172,7 +172,7 @@ decorate_annotation("change_point_dist", {
   )
 })
 
-change_points_ang = cpts(ang_cpt, 2)[!is.na(cpts(ang_cpt, 2))]
+change_points_ang = cpts(ang_cpt, cp_angle)[!is.na(cpts(ang_cpt, cp_angle))]
 
 #creating vertical line for each change point in angle
 for(i in change_points_ang) {
