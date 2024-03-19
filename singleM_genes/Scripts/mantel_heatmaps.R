@@ -24,9 +24,14 @@ GSVs = GSVs[order(GSVs$numbers),]
 rownames(GSVs)= GSVs$numbers
 GSVs = GSVs[,-ncol(GSVs)]
 
-## Add rarefracrtion levels
+## Add rarefracrtion levels and PERMANOVA results
 
 r_levels = read.csv2('singleM_genes/Data/rarefraction_levels.csv', row.names = 1)
+sperm = read.csv2('singleM_genes/Results/permanova_by_hellinger_res.csv', row.names = 1)
+sperm$Gene[which(sperm$Gene == "narG")] = 'narG_nxrA'
+sperm$Gene[which(sperm$Gene == "narH")] = 'narH_nxrB'
+sperm$R2_perm[is.na(sperm$R2_perm)] = 0
+sperm$p_perm[is.na(sperm$p_perm)] = 1
 
 heatmaps = list()
 for (i in names(mantel)) {
@@ -52,6 +57,10 @@ for (i in names(mantel)) {
   names(clust) = paste('c.', names(clust))
   
   raref = r_levels[i,]
+  perm = sperm[sperm$Gene == i,]
+  perm$numbers = c(100, 50:99) |> as.numeric()
+  perm = perm[order(perm$numbers),]
+  perm$asterisk <- ifelse(perm$p_perm < 0.05, "*", "")
   
   ha = rowAnnotation(Group = clust,
                      col = list(Group = c(`1` = '#7fc97f', `2` = '#beaed4', `3` = '#fdc086', `4` = '#386cb0', `5` = '#ffff99')),
@@ -61,6 +70,13 @@ for (i in names(mantel)) {
   ha1 = HeatmapAnnotation(`GSV number` = anno_barplot(GSVs[,i]),
                           height = unit(1, 'cm'))
   
+  col_fun = circlize::colorRamp2(c(min(perm$R2_perm), max(perm$R2_perm)), c('yellow', 'brown'))
+  ha2 = HeatmapAnnotation(R2 = perm$R2_perm, 
+                          col = list(R2 = col_fun),
+                          p = anno_text(perm$asterisk),
+                          annotation_name_side = 'left',
+                          show_legend = F)
+  
   hm = Heatmap(as.matrix(df),
           row_order = rownames(df),
           column_order = colnames(df),
@@ -68,6 +84,7 @@ for (i in names(mantel)) {
           column_labels = labels,
           right_annotation = ha,
           top_annotation = ha1,
+          bottom_annotation = ha2,
           show_heatmap_legend = F,
           column_title = paste0(i, '(', raref, ')'))
   
@@ -81,7 +98,7 @@ heatmaps = lapply(heatmaps, function(x){
 
 library(cowplot)
 combined_plot2 = plot_grid(plotlist = heatmaps, ncol = 7)
-# ggsave('singleM_genes/Figures/mantel_heatmap.png', combined_plot2, width = 30, height = 27)
+## ggsave('singleM_genes/Figures/mantel_heatmap.png', combined_plot2, width = 30, height = 27)
 
 # pdf('singleM_genes/Figures/mantel_heatmaps.pdf')
 # for (i in seq_along(heatmaps)) {
