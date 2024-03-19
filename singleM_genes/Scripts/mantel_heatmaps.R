@@ -83,8 +83,8 @@ library(cowplot)
 combined_plot2 = plot_grid(plotlist = heatmaps, ncol = 7)
 # ggsave('singleM_genes/Figures/mantel_heatmap.png', combined_plot2, width = 30, height = 27)
 
-pdf('singleM_genes/Figures/mantel_heatmaps.pdf')
-for (i in seq_along(heatmaps)) {
-  print(heatmaps[[i]])
-}
-dev.off()
+# pdf('singleM_genes/Figures/mantel_heatmaps.pdf')
+# for (i in seq_along(heatmaps)) {
+#   print(heatmaps[[i]])
+# }
+# dev.off()
