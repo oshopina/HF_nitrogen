@@ -35,7 +35,7 @@ df.abs <- otu.bac.nr.abs[, colnames(df)]
 
 ############################### Change point analysis ##########################
 
-df_mat = sqrt(df.abs) |> as.matrix()
+df_mat = sqrt(log2(df.abs + 1)) |> as.matrix()
 cpt = geomcp(df_mat)
 plot(cpt)
 
@@ -50,7 +50,7 @@ pen.value.full(dist_cpt)
 dist_var = cpts.full(dist_cpt)
 tail(dist_var)
 plot(dist_cpt, diagnostic = T)
-plot(dist_cpt, ncpts = 5)
+plot(dist_cpt, ncpts = 3)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_dist = readline('Number of changepoint for distance data: ') |> as.numeric()
 

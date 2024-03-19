@@ -86,3 +86,17 @@ for (v in genes) {
   pr_list[[v]] <- cor_matrix
 }
 
+## Save GSV number 
+
+GSV_df = matrix(nrow = length(rarefied_tables), ncol = length(genes))
+colnames(GSV_df) = genes
+rownames(GSV_df) = names(rarefied_tables)
+
+for (j in genes) {
+  for (i in names(rarefied_tables)) {
+    df = rarefied_tables[[i]][[j]]
+    GSV_df[i,j] = ncol(df)
+  }
+}
+
+write.csv2(GSV_df, 'singleM_genes/Data/GSV_number.csv')

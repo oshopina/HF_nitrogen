@@ -19,6 +19,7 @@ for (i in names(GSV_rarefied_gsvtables50)) {
 names(r_levels)[which(names(r_levels) == 'narG')] = 'narG_nxrA'
 names(r_levels)[which(names(r_levels) == 'narH')] = 'narH_nxrB'
 
+# write.csv2(r_levels, 'singleM_genes/Data/rarefraction_levels.csv')
 rm(GSV_rarefied_gsvtables50)
 ################# Create separate tables for each gene #########################
 all_tables = mget(ls(pattern = 'GSV'))
