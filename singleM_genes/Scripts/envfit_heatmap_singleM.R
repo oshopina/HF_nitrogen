@@ -50,6 +50,7 @@ library(ComplexHeatmap)
 # }
 # 
 # save.image('../HF_nitrogen_paper/envfit.RData')
+## write.csv2(cluster_table, 'singleM_genes/Results/envfit.csv')
 
 load('../HF_nitrogen_paper/envfit.RData')
 cluster_table$Gene[cluster_table$Gene == 'narG'] = 'narG_nxrA'
