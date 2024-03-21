@@ -25,8 +25,10 @@ for (j in names(clusters)) {
     ############################### Change point analysis #########################
     print(i)
     df = clusters[[j]][[i]]
-    env_temp = env[rownames(env) %in% rownames(df),]
+    env_temp = env[,c('Hoosfield.ID', 'pH')]
+    env_temp = env_temp[rownames(env_temp) %in% rownames(df),]
     df = df[rownames(env_temp), ]
+    env_temp = env_temp[rownames(env) %in% rownames(df),]
     cpt = geomcp(df)
     
     dist_cpt = cpt.meanvar(
@@ -53,15 +55,13 @@ for (j in names(clusters)) {
     cp_angle = sum(!is.na(ang_var[nrow(ang_var) - 1,]))
     
     change_points = c(cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))], cpts(ang_cpt, cp_angle)[!is.na(cpts(ang_cpt, cp_angle))])
-    flattened_df = cbind(cp = change_points,
+    samples = rownames(df[change_points,])
+    flattened_df = cbind(`Hoosfield.ID` = samples,
                          Cluster = j,
                          Gene = i)
-    flattened_df = rbind(flattened_df, flattened_df, flattened_df, flattened_df, flattened_df, flattened_df,
-                         flattened_df, flattened_df, flattened_df, flattened_df, flattened_df, flattened_df,
-                         flattened_df, flattened_df, flattened_df, flattened_df, flattened_df, flattened_df,
-                         flattened_df, flattened_df, flattened_df, flattened_df, flattened_df, flattened_df,
-                         flattened_df, flattened_df, flattened_df, flattened_df, flattened_df, flattened_df)
-    flattened_df = merge(flattened_df, pH_list, all.y = T)
+    flattened_df = replicate(100, flattened_df, simplify = FALSE)
+    flattened_df = do.call(rbind, flattened_df)
+    flattened_df = merge(flattened_df, env_temp, all.y = T)
     flattened_df$Gene = i
     flattened_df$Cluster = j
     
@@ -75,14 +75,15 @@ change_points_df$Gene[change_points_df$Gene == 'narH'] = 'narH_nxrB'
 gene_order = openxlsx::read.xlsx('graftM_genes/Data/nitrogen_genes.xlsx')
 gene_order = gene_order[gene_order$Gene %in% unique(change_points_df$Gene),]
 change_points_df$Gene = factor(change_points_df$Gene, levels = rev(gene_order$Gene))
-change_points_df = change_points_df[,-2]
+change_points_df = change_points_df[,-c(1:2)]
 
 mypal.pH <- colorRampPalette(c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#66c2a5", "#3288bd", "#5e4fa2"))
 joyplot = ggplot(change_points_df, aes(x = pH, y = Gene, fill = after_stat(x))) +
-  geom_density_ridges_gradient(scale = 2) +
+  geom_density_ridges_gradient(scale = 3) +
   scale_fill_gradientn(colours = mypal.pH(256)) +
   theme_bw() +
   theme(legend.position = 'none') +
-  xlim(3.5,8.0)
+  xlim(3.5,8.0) +
+  ggtitle('GSVs composition')
 
 
