@@ -15,8 +15,6 @@ load_rarefied_gsvtables('singleM_genes/Data/', env.df = env,
 clusters = mget(ls(pattern = 'GSV'))
 rm(list = ls(pattern = 'GSV'))
 genes = unique(names(clusters$GSV_rarefied_gsvtables100))
-env$cp = c(1:117)
-pH_list = env[,c('cp', 'pH')]
 
 change_points_df = data.frame()
 for (j in names(clusters)) {
@@ -41,7 +39,7 @@ for (j in names(clusters)) {
     dist_var = cpts.full(dist_cpt)
     ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
     if(all(is.na(dist_var))) next
-    cp_dist = sum(!is.na(dist_var[nrow(dist_var) - 1,]))
+    cp_dist = sum(!is.na(dist_var[nrow(dist_var) - 2,]))
     
     ang_cpt = cpt.meanvar(
       angle(cpt),
@@ -52,7 +50,7 @@ for (j in names(clusters)) {
     
     ang_var = cpts.full(ang_cpt)
     ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
-    cp_angle = sum(!is.na(ang_var[nrow(ang_var) - 1,]))
+    cp_angle = sum(!is.na(ang_var[nrow(ang_var) - 2,]))
     
     change_points = c(cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))], cpts(ang_cpt, cp_angle)[!is.na(cpts(ang_cpt, cp_angle))])
     samples = rownames(df[change_points,])
