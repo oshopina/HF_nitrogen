@@ -34,7 +34,7 @@ pen.value.full(dist_cpt)
 dist_var = cpts.full(dist_cpt)
 tail(dist_var)
 plot(dist_cpt, diagnostic = T)
-plot(dist_cpt, ncpts = 1)
+plot(dist_cpt, ncpts = 2)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_dist = readline('Number of changepoint for distance data: ') |> as.numeric()
 
@@ -86,18 +86,42 @@ anova$Signif <- gsub("\\*+", "*", anova$Signif)
 ############################## Heatmap ########################################
 
 ## Scale data for heatmap
-df_scaled <- t(scale(sqrt(df)))
+df_scaled <- df |> vegan::decostand(method = 'normalize') |> scale() |> t()
 medians = apply(df, 2, function(x){
   median(x)
 })
 
-## Create bottom heatmap annotation (pH ribbon)
-col_fun <- circlize::colorRamp2(
+## Define color palette for pH levels and names for pH levels
+col_fun = circlize::colorRamp2(
   c(3.7, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8),
-  c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08a", "#e6f598", "#aadda4", "#66a2a5", "#3288ad", "#5e4fa2")
+  c(
+    "#9e0142",
+    "#d53e4f",
+    "#f46d43",
+    "#fdae61",
+    "#fee08a",
+    "#e6f598",
+    "#aadda4",
+    "#66a2a5",
+    "#3288ad",
+    "#5e4fa2"
+  )
 )
-names_for_pH <- c(3.7, rep("", 16), 4, rep("", 15), 4.5, rep("", 15), 5, rep("", 13), 5.5, rep("", 7), 6, rep("", 10), 
-                  6.5, rep("", 12), 7, rep("", 13), 7.5, rep("", 6), 8.0)
+# Get unique pH values
+unique_pH <- sort(unique(env$pH))
+names_for_pH <- rep("", length(env$pH))
+approx_positions <- c(3.7, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0)
+# Iterate over each approximate pH value
+for (pH_value in approx_positions) {
+  # Find the index in unique_pH that is closest to the approximate pH value
+  closest_index <- which.min(abs(unique(env$pH) - pH_value))
+  
+  # Find the index in env_temp$pH that corresponds to the first occurrence of the unique pH value
+  first_occurrence_index <- which(env$pH == unique(env$pH)[closest_index])[1]
+  
+  # Set the corresponding position in names_for_pH to the approximate pH value
+  names_for_pH[first_occurrence_index] <- pH_value
+}
 
 ha <- HeatmapAnnotation(
   pH = env$pH,
@@ -147,7 +171,15 @@ ha2 = HeatmapAnnotation(
 )
 
 ## Create Heatmap
-my_palette <- colorRampPalette(c('white', 'black'))
+my_palette = colorRampPalette(c(
+  'white',
+  '#eeeeee',
+  '#aaaaaa',
+  '#444444',
+  '#3a3a3a',
+  '#2d2d2d',
+  'black'
+))
 
 Heatmap(
   df_scaled,

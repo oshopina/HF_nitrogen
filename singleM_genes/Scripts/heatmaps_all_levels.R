@@ -5,26 +5,30 @@ library(ggplot2)
 library(viridis)
 library(changepoint.geo)
 
-env = read.csv('graftM_genes/Data/mag_env_no_outliers.csv')
-rownames(env) = env$Hoosfield.ID
-env <- env[order(env$pH),]
-load_rarefied_gsvtables('singleM_genes/Data/', env.df = env,
-                        changeSampleName = T, refColumn = env$gsveasy_sample, 
-                        clustlvls = c(50:100))
+# env = read.csv('graftM_genes/Data/mag_env_no_outliers.csv')
+# rownames(env) = env$Hoosfield.ID
+# env <- env[order(env$pH),]
+# load_rarefied_gsvtables('singleM_genes/Data/', env.df = env,
+#                         changeSampleName = T, refColumn = env$gsveasy_sample, 
+#                         clustlvls = c(50:100))
+# 
+# clusters = mget(ls(pattern = 'GSV'))
+# rm(list = ls(pattern = 'GSV'))
+# genes = unique(names(clusters$GSV_rarefied_gsvtables100))
+# save.image('../HF_nitrogen_paper/heatmaps_all_levels.Rdata')
 
-clusters = mget(ls(pattern = 'GSV'))
-rm(list = ls(pattern = 'GSV'))
-genes = unique(names(clusters$GSV_rarefied_gsvtables100))
+load('../HF_nitrogen_paper/heatmaps_all_levels.Rdata')
 
 for (ncluster in 1:length(clusters)) {
   j = names(clusters)[ncluster]
   print(j)
-  df = clusters[[j]][['narH']] |> as.data.frame()
+  df = clusters[[j]][['nirK']] |> as.data.frame()
+  df <- df[, colSums(df != 0) > 0]
   env_temp = env[rownames(env) %in% rownames(df),]
   df = df[env_temp$Hoosfield.ID,]
   
   ############################### Change point analysis ##########################
-  df_mat = df |> as.matrix()
+  df_mat = df |> as.matrix() |> vegan::decostand(method = 'normalize')
   
   cpt = geomcp(df_mat)
   
@@ -37,9 +41,15 @@ for (ncluster in 1:length(clusters)) {
   )
   
   dist_var = cpts.full(dist_cpt)
-  ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
-  if(all(is.na(dist_var))) next
-  cp_dist = sum(!is.na(dist_var[nrow(dist_var) - 2,]))
+  ######################## WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
+  if (all(is.na(dist_var)))
+    next
+  penalties = pen.value.full(dist_cpt) |> cumsum() |> diff()
+  cutoff = which(penalties < 50)
+  if (length(cutoff) == 0 || nrow(dist_var) == 1) {
+    cp_dist = sum(!is.na(dist_var[1, ]))
+  } else
+    cp_dist = sum(!is.na(dist_var[max(cutoff) + 1, ]))
   
   ang_cpt = cpt.meanvar(
     angle(cpt),
@@ -50,8 +60,13 @@ for (ncluster in 1:length(clusters)) {
   )
   
   ang_var = cpts.full(ang_cpt)
-  ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
-  cp_angle = sum(!is.na(ang_var[nrow(ang_var) - 2,]))
+  ######################## WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
+  if(all(is.na(ang_var))) next
+  penalties = pen.value.full(ang_cpt) |> cumsum() |> diff()
+  cutoff = which(penalties < 50)
+  if(length(cutoff) == 0 || nrow(ang_var) == 1) {
+    cp_angle = sum(!is.na(ang_var[1,]))
+  } else cp_angle = sum(!is.na(ang_var[max(cutoff) + 1,]))
   
   max_values = apply(df, 2, max)
   max_values = order(max_values, decreasing = T)
@@ -79,16 +94,16 @@ for (ncluster in 1:length(clusters)) {
     '#2d2d2d',
     'black'
   ))
-  df_scaled = t(scale(sqrt(df_plot)))
+  df_scaled = df_plot |> vegan::decostand(method = 'normalize') |> scale() |> t()
   df_scaled = df_scaled[, rownames(env_temp)]
   
   medians = apply(df_plot, 2, function(x) {
     round(mean(x), digits = 1)
   })
-  median_col = colorRamp2(c(0, max(medians)), c('white', 'aquamarine4'))
+  median_col = circlize::colorRamp2(c(0, max(medians)), c('white', 'aquamarine4'))
   
   ## Define color palette for pH levels and names for pH levels
-  col_fun = colorRamp2(
+  col_fun = circlize::colorRamp2(
     c(3.7, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8),
     c(
       "#9e0142",
@@ -106,7 +121,7 @@ for (ncluster in 1:length(clusters)) {
   # Get unique pH values
   unique_pH <- sort(unique(env_temp$pH))
   names_for_pH <- rep("", length(env_temp$pH))
-  approx_positions <- c(3.7, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.5)
+  approx_positions <- c(3.7, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0)
   # Iterate over each approximate pH value
   for (pH_value in approx_positions) {
     # Find the index in unique_pH that is closest to the approximate pH value
@@ -169,7 +184,7 @@ for (ncluster in 1:length(clusters)) {
     left_annotation = ha_c,
     right_annotation = ha_f,
     show_heatmap_legend = FALSE,
-    column_title = paste0('Cluster level ', gsub("[^0-9]", "", j))
+    column_title = paste0('nirK clustering level ', gsub("[^0-9]", "", j))
   ))
   
   draw(lgd, x = unit(0.04, "npc"), y = unit(0.95, "npc"))

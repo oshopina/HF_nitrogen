@@ -9,86 +9,92 @@ library(changepoint.geo)
 # rownames(env) = env$Hoosfield.ID
 # env <- env[order(env$pH),]
 # load_rarefied_gsvtables('singleM_genes/Data/', env.df = env,
-#                         changeSampleName = T, refColumn = env$gsveasy_sample, 
+#                         changeSampleName = T, refColumn = env$gsveasy_sample,
 #                         clustlvls = c(50:100))
 # 
 # clusters = mget(ls(pattern = 'GSV'))
 # rm(list = ls(pattern = 'GSV'))
 # genes = unique(names(clusters$GSV_rarefied_gsvtables100))
-# 
-# change_points_df = data.frame()
-# for (j in 1: length(clusters)) {
-#   print(j)
-#   for (i in genes) {
-#     ############################### Change point analysis #########################
-#     print(i)
-#     df = clusters[[j]][[i]]
-#     env_temp = env[,c('Hoosfield.ID', 'pH')]
-#     env_temp = env_temp[rownames(env_temp) %in% rownames(df),]
-#     df = df[rownames(env_temp), ] |> as.data.frame()
-#     env_temp = env_temp[rownames(env_temp) %in% rownames(df),]
-#     
-#     cpt = geomcp(sqrt(df))
-#     
-#     dist_cpt = cpt.meanvar(
-#       distance(cpt),
-#       method = "PELT",
-#       penalty = 'CROPS',
-#       pen.value = c(5, 500),
-#       minseglen = 20
-#     )
-#     
-#     dist_var = cpts.full(dist_cpt)
-#     ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
-#     if(all(is.na(dist_var))) next
-#     penalties = pen.value.full(dist_cpt) |> cumsum() |> diff()
-#     cutoff = which(penalties < 50)
-#     if(length(cutoff) == 0 || nrow(dist_var) == 1) {
-#       cp_dist = sum(!is.na(dist_var[1,]))
-#     } else cp_dist = sum(!is.na(dist_var[max(cutoff) + 1,]))
-# 
-#     print(pen.value.full(dist_cpt))
-#     print(dist_var)
-#     print(cp_dist)
-#     
-#     ang_cpt = cpt.meanvar(
-#       angle(cpt),
-#       method = "PELT",
-#       penalty = 'CROPS',
-#       pen.value = c(5, 500),
-#       minseglen = 20
-#     )
-#     
-#     ang_var = cpts.full(ang_cpt)
-#     ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
-#     if(all(is.na(ang_var))) next
-#     penalties = pen.value.full(ang_cpt) |> cumsum() |> diff()
-#     cutoff = which(penalties < 50)
-#     if(length(cutoff) == 0 || nrow(ang_var) == 1) {
-#       cp_angle = sum(!is.na(ang_var[1,]))
-#     } else cp_angle = sum(!is.na(ang_var[max(cutoff) + 1,]))
-#     
-#     change_points = c(cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))], cpts(ang_cpt, cp_angle)[!is.na(cpts(ang_cpt, cp_angle))])
-#     if(length(change_points) == 0) next
-#     samples = rownames(df)[change_points]
-#     
-#     flattened_df = cbind(`Hoosfield.ID` = samples,
-#                          Cluster = j,
-#                          Gene = i)
-#     flattened_df = merge(flattened_df, env_temp, all.x = T)
-#     
-#     change_points_df = rbind(change_points_df, flattened_df)
-#   }
-# }
-# 
-# change_points_df$Gene[change_points_df$Gene == 'narG'] = 'narG_nxrA'
-# change_points_df$Gene[change_points_df$Gene == 'narH'] = 'narH_nxrB'
-# 
-# gene_order = openxlsx::read.xlsx('graftM_genes/Data/nitrogen_genes.xlsx')
-# gene_order = gene_order[gene_order$Gene %in% unique(change_points_df$Gene),]
-# change_points_df$Gene = factor(change_points_df$Gene, levels = rev(gene_order$Gene))
-# 
-# saveRDS(change_points_df, '../HF_nitrogen_paper/change_points.rds')
+
+load('../HF_nitrogen_paper/heatmaps_all_levels.Rdata')
+
+change_points_df = data.frame()
+for (j in 1:length(clusters)) {
+  print(j)
+  for (i in genes) {
+    ############################### Change point analysis #########################
+    print(i)
+    df = clusters[[j]][[i]]
+    env_temp = env[,c('Hoosfield.ID', 'pH')]
+    env_temp = env_temp[rownames(env_temp) %in% rownames(df),]
+    df = df[rownames(env_temp), ] |> as.data.frame()
+    env_temp = env_temp[rownames(env_temp) %in% rownames(df),]
+
+    df_mat = df |> as.matrix() |> vegan::decostand(method = 'normalize')
+
+    cpt = geomcp(df_mat)
+
+    dist_cpt = cpt.meanvar(
+      distance(cpt),
+      method = "PELT",
+      penalty = 'CROPS',
+      pen.value = c(5, 500),
+      minseglen = 20
+    )
+
+    dist_var = cpts.full(dist_cpt)
+    ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
+    if(all(is.na(dist_var))) next
+    penalties = pen.value.full(dist_cpt) |> cumsum() |> diff()
+    cutoff = which(penalties < 50)
+    if(length(cutoff) == 0 || nrow(dist_var) == 1) {
+      cp_dist = sum(!is.na(dist_var[1,]))
+    } else cp_dist = sum(!is.na(dist_var[max(cutoff) + 1,]))
+
+    print(pen.value.full(dist_cpt))
+    print(dist_var)
+    print(cp_dist)
+
+    ang_cpt = cpt.meanvar(
+      angle(cpt),
+      method = "PELT",
+      penalty = 'CROPS',
+      pen.value = c(5, 500),
+      minseglen = 20
+    )
+
+    ang_var = cpts.full(ang_cpt)
+    ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
+    if(all(is.na(ang_var))) next
+    penalties = pen.value.full(ang_cpt) |> cumsum() |> diff()
+    cutoff = which(penalties < 50)
+    if(length(cutoff) == 0 || nrow(ang_var) == 1) {
+      cp_angle = sum(!is.na(ang_var[1,]))
+    } else cp_angle = sum(!is.na(ang_var[max(cutoff) + 1,]))
+
+    change_points = c(cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))],
+    cpts(ang_cpt, cp_angle)[!is.na(cpts(ang_cpt, cp_angle))])
+
+    if(length(change_points) == 0) next
+    samples = rownames(df)[change_points]
+
+    flattened_df = cbind(`Hoosfield.ID` = samples,
+                         Cluster = j,
+                         Gene = i)
+    flattened_df = merge(flattened_df, env_temp, all.x = T)
+
+    change_points_df = rbind(change_points_df, flattened_df)
+  }
+}
+
+change_points_df$Gene[change_points_df$Gene == 'narG'] = 'narG_nxrA'
+change_points_df$Gene[change_points_df$Gene == 'narH'] = 'narH_nxrB'
+
+gene_order = openxlsx::read.xlsx('graftM_genes/Data/nitrogen_genes.xlsx')
+gene_order = gene_order[gene_order$Gene %in% unique(change_points_df$Gene),]
+change_points_df$Gene = factor(change_points_df$Gene, levels = rev(gene_order$Gene))
+
+saveRDS(change_points_df, '../HF_nitrogen_paper/change_points.rds')
 
 change_points_df = readRDS('../HF_nitrogen_paper/change_points.rds')
 

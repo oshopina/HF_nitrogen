@@ -91,17 +91,16 @@ for (j in names(alpha_by_gene)) {
       ) +
       annotate(
         geom = 'text',
-        x = 7,
-        y = min(df$value, na.rm = TRUE),
+        x = 6,
+        y = min(df$value, na.rm = TRUE) + 0.05,
         label = paste0(
-          'Mean correlation = ',
-          round(mean(cor_matrix), digits = 2),
-          '+-',
-          round(sd(cor_matrix), digits = 2)
-        )
+          'ρ = ',
+          round(mean(cor_matrix), digits = 2)),
+        size = 5,
+        fontface = 'bold'
       ) +
-      theme_classic(base_size = 15) +
-      ggtitle(paste0(j, ' (',raref, ')')) +
+      theme_classic(base_size = 17) +
+      ggtitle(paste0(j, ' (r.level = ',raref, ')')) +
       ylab('Shannon')
     
     gene_plots[[j]] = p2
@@ -114,7 +113,16 @@ gene_order = gene_order[gene_order$Gene %in% names(gene_plots), ]
 gene_plots = gene_plots[gene_order$Gene]
 
 combined_plot = wrap_plots(gene_plots, ncol = 7)
-# ggsave('singleM_genes/Figures/5_levels.png', combined_plot, width = 25, height = 21)
+# ggsave('singleM_genes/Figures/5_levels.svg', device = 'svg', combined_plot, width = 25, height = 21)
+
+dummy_plot = ggplot(df, aes(x = pH, y = value, col = Cluster)) +
+  geom_point(size = 5) +
+  theme_classic(base_size = 20) +
+  theme(legend.position="bottom") +
+  guides(color = guide_legend(nrow = 1)) +
+  labs(color = "Clustering level")
+
+ggsave('singleM_genes/Figures/5_legend.svg', device = 'svg', dummy_plot)
 
 # pdf('singleM_genes/Figures/5_levels.pdf')
 # for (i in seq_along(gene_plots)) {
