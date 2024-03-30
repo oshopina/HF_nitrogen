@@ -25,7 +25,7 @@ for (ngene in 1:length(genes)) {
   df = df[env_temp$Hoosfield.ID, ]
   
   ############################### Change point analysis ##########################
-  df_mat = df |> as.matrix() |> vegan::decostand(method = 'normalize')
+  df_mat = df |> as.matrix() |> vegan::decostand(method = 'normalize', MARGIN = 2)
   
   cpt = geomcp(df_mat)
   
@@ -38,13 +38,21 @@ for (ngene in 1:length(genes)) {
   )
   
   dist_var = cpts.full(dist_cpt)
-  ######################## WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
-  if (all(is.na(dist_var))) next
-  penalties = pen.value.full(dist_cpt) |> cumsum() |> diff()
-  cutoff = which(penalties < 50)
+  
+  if (all(is.na(dist_var)))
+    next
+  penalties = pen.value.full(dist_cpt)
+  cutoff = cpt.meanvar(
+    penalties,
+    method = "PELT",
+    penalty = 'CROPS',
+    pen.value = c(5, 500)
+  ) |> cpts(ncpt = 1)
   if (length(cutoff) == 0 || nrow(dist_var) == 1) {
-    cp_dist = sum(!is.na(dist_var[1, ]))
-  } else cp_dist = sum(!is.na(dist_var[max(cutoff) + 1, ]))
+    cp_dist = sum(!is.na(dist_var[1,]))
+  } else {
+    cp_dist = sum(!is.na(dist_var[cutoff[1],]))
+  }
   
   ang_cpt = cpt.meanvar(
     angle(cpt),
@@ -55,13 +63,22 @@ for (ngene in 1:length(genes)) {
   )
   
   ang_var = cpts.full(ang_cpt)
-  ######################## WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
-      if(all(is.na(ang_var))) next
-      penalties = pen.value.full(ang_cpt) |> cumsum() |> diff()
-      cutoff = which(penalties < 50)
-      if(length(cutoff) == 0 || nrow(ang_var) == 1) {
-        cp_angle = sum(!is.na(ang_var[1,]))
-      } else cp_angle = sum(!is.na(ang_var[max(cutoff) + 1,]))
+  
+  if (all(is.na(ang_var)))
+    next
+  penalties = pen.value.full(ang_cpt)
+  cutoff = cpt.meanvar(
+    penalties,
+    method = "PELT",
+    penalty = 'CROPS',
+    pen.value = c(5, 500)
+  ) |> cpts(ncpt = 1)
+  if (length(cutoff) == 0 || nrow(ang_var) == 1) {
+    cp_angle = sum(!is.na(ang_var[1,]))
+  } else {
+    cp_angle = sum(!is.na(ang_var[cutoff[1],]))
+  }
+  
   
   max_values = apply(df, 2, max)
   max_values = order(max_values, decreasing = T)
@@ -88,7 +105,7 @@ for (ngene in 1:length(genes)) {
     '#2d2d2d',
     'black'
   ))
-  df_scaled = df_plot |> vegan::decostand(method = 'normalize') |> scale() |> t()
+  df_scaled = df_plot |> vegan::decostand(method = 'normalize', MARGIN = 2) |> scale() |> t()
   df_scaled = df_scaled[, rownames(env_temp)]
   
   medians = apply(df_plot, 2, function(x) {

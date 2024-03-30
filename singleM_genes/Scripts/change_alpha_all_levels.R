@@ -41,13 +41,22 @@ for (j in names(clusters)) {
     )
 
     dist_var = cpts.full(dist_cpt)
-    ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
-    if(all(is.na(dist_var))) next
-    penalties = pen.value.full(dist_cpt) |> cumsum() |> diff()
-    cutoff = which(penalties < 50)
-    if(length(cutoff) == 0 || nrow(dist_var) == 1) {
+
+    if (all(is.na(dist_var)))
+      next
+    penalties = pen.value.full(dist_cpt)
+    
+    if (nrow(dist_var) == 1) {
       cp_dist = sum(!is.na(dist_var[1,]))
-    } else cp_dist = sum(!is.na(dist_var[max(cutoff) + 1,]))
+    } else {
+      cutoff = cpt.meanvar(
+        penalties,
+        method = "PELT",
+        penalty = 'CROPS',
+        pen.value = c(5, 500)
+      ) |> cpts(ncpt = 1)
+      cp_dist = sum(!is.na(dist_var[cutoff[1],]))
+    }
 
     change_points = c(cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))])
     if(length(change_points) == 0) next
@@ -79,3 +88,15 @@ joyplot = ggplot(change_points_df, aes(x = pH, y = Gene, fill = after_stat(x))) 
   theme(legend.position = 'none') +
   xlim(3.5,8.0) +
   ggtitle('Shannon diversity')
+
+# ggsave('singleM_genes/Figures/change_alpha.svg', joyplot, width = 5, height = 7)
+
+binplot = ggplot(change_points_df, aes(x = pH, y = Gene, fill = after_stat(x))) +
+  geom_density_ridges_gradient(stat = 'binline', bins = 30, scale = 3) +
+  scale_fill_gradientn(colours = mypal.pH(256)) +
+  theme_bw() +
+  theme(legend.position = 'none') +
+  xlim(3.5,8.0) +
+  ggtitle('GSVs composition')
+
+# ggsave('singleM_genes/Figures/change_alpha_bin.svg', binplot, width = 5, height = 7)
