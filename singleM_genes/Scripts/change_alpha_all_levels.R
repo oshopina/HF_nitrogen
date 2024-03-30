@@ -85,18 +85,25 @@ joyplot = ggplot(change_points_df, aes(x = pH, y = Gene, fill = after_stat(x))) 
   geom_density_ridges_gradient(scale = 3) +
   scale_fill_gradientn(colours = mypal.pH(256)) +
   theme_bw() +
-  theme(legend.position = 'none') +
+  theme(legend.position = 'none',
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank()) +
   xlim(3.5,8.0) +
   ggtitle('Shannon diversity')
 
 # ggsave('singleM_genes/Figures/change_alpha.svg', joyplot, width = 5, height = 7)
 
 binplot = ggplot(change_points_df, aes(x = pH, y = Gene, fill = after_stat(x))) +
-  geom_density_ridges_gradient(stat = 'binline', bins = 30, scale = 3) +
+  geom_density_ridges_gradient(stat = 'binline', bins = 30, scale = 2) +
   scale_fill_gradientn(colours = mypal.pH(256)) +
   theme_bw() +
-  theme(legend.position = 'none') +
+  theme(legend.position = 'none',
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank()) +
   xlim(3.5,8.0) +
-  ggtitle('GSVs composition')
+  ggtitle('Shannon diversity')
 
 # ggsave('singleM_genes/Figures/change_alpha_bin.svg', binplot, width = 5, height = 7)
+
+# saveRDS(joyplot, 'singleM_genes/Results/joy_alpha.rds')
+# saveRDS(binplot, 'singleM_genes/Results/bin_alpha.rds')

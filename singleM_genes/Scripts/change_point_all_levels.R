@@ -118,20 +118,28 @@ joyplot = ggplot(change_points_df, aes(x = pH, y = Gene, fill = after_stat(x))) 
   theme_bw() +
   theme(legend.position = 'none') +
   xlim(3.5,8.0) +
-  ggtitle('GSVs composition')
+  ggtitle('GSV composition')
 
-# ggsave('singleM_genes/Figures/change_point.svg', joyplot, width = 5, height = 7)
 
 binplot = ggplot(change_points_df, aes(x = pH, y = Gene, fill = after_stat(x))) +
-  geom_density_ridges_gradient(stat = 'binline', bins = 30, scale = 3) +
+  geom_density_ridges_gradient(stat = 'binline', bins = 30, scale = 2) +
   scale_fill_gradientn(colours = mypal.pH(256)) +
   theme_bw() +
   theme(legend.position = 'none') +
   xlim(3.5,8.0) +
-  ggtitle('GSVs composition')
-
-# ggsave('singleM_genes/Figures/change_point_bin.svg', binplot, width = 5, height = 7)
+  ggtitle('GSV composition')
 
 frequency_table = table(change_points_df[, c(3,4)]) |> as.data.frame()
 
 a = frequency_table[frequency_table$Gene == 'nirK' & frequency_table$Freq != 0,]
+
+alpha_joy = readRDS('singleM_genes/Results/joy_alpha.rds')
+alpha_bin = readRDS('singleM_genes/Results/bin_alpha.rds')
+
+library(patchwork)
+
+joys = joyplot + alpha_joy
+bins = binplot + alpha_bin
+
+ggsave('singleM_genes/Figures/change_point.png', joys, width = 8, height = 8)
+ggsave('singleM_genes/Figures/change_bin.png', bins, width = 8, height = 8)
