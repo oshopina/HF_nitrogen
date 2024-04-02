@@ -190,7 +190,7 @@ ha2 = HeatmapAnnotation(
 ## Create Heatmap
 my_palette <- colorRampPalette(c('white', 'black'))
 
-Heatmap(
+draw(Heatmap(
   df.abs_scaled,
   row_order = rownames(df.abs_scaled),
   column_order = env$Hoosfield.ID,
@@ -204,7 +204,7 @@ Heatmap(
   left_annotation = ha_c,
   right_annotation = ha_f,
   show_heatmap_legend = FALSE
-)
+))
 
 draw(lgd, x = unit(0.25, "npc"), y = unit(0.95, "npc"))
 change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]

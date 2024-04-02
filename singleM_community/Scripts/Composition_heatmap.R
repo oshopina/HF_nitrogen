@@ -86,7 +86,7 @@ anova$Signif <- gsub("\\*+", "*", anova$Signif)
 ############################## Heatmap ########################################
 
 ## Scale data for heatmap
-df_scaled <- df |> vegan::decostand(method = 'normalize') |> scale() |> t()
+df_scaled <- df |> vegan::decostand(method = 'normalize', MARGIN = 2) |> scale() |> t()
 medians = apply(df, 2, function(x){
   median(x)
 })
@@ -181,7 +181,7 @@ my_palette = colorRampPalette(c(
   'black'
 ))
 
-Heatmap(
+draw(Heatmap(
   df_scaled,
   row_order = rownames(df_scaled),
   column_order = env$Hoosfield.ID,
@@ -195,7 +195,7 @@ Heatmap(
   left_annotation = ha_c,
   right_annotation = ha_f,
   show_heatmap_legend = FALSE
-)
+))
 
 draw(lgd, x = unit(0.25, "npc"), y = unit(0.95, "npc"))
 change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]

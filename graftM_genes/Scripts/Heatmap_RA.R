@@ -73,7 +73,7 @@ anova$Signif <- gsub("\\*+", "*", anova$Signif)
 ################################# Heatmap #####################################
 ## Set up color palette and scale gene count data
 my_palette = colorRampPalette(c('white', 'black'))
-df_scaled <- df |> vegan::decostand(method = 'hellinger') |> scale() |> t()
+df_scaled <- df |> vegan::decostand(method = 'hellinger', MARGIN = 2) |> scale() |> t()
 df_scaled = df_scaled[,rownames(env)]
 df_scaled = df_scaled[gene_ontology$Gene,]
 
@@ -153,7 +153,7 @@ lgd = Legend(title = 'Median frequency', col_fun = median_col, at = c(0, 200, 50
              direction = 'horizontal')
 
 # Create heatmap
-Heatmap(
+draw(Heatmap(
   df_scaled,
   row_order = rownames(df_scaled),
   column_order = env$Hoosfield.ID,
@@ -167,7 +167,7 @@ Heatmap(
   left_annotation = ha_c,
   right_annotation = ha_f,
   show_heatmap_legend = FALSE
-)
+))
 
 draw(lgd, x = unit(0.10, "npc"), y = unit(0.95, "npc"))
 change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]

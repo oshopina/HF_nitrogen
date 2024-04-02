@@ -58,14 +58,17 @@ anova$p_value = round(anova$p_value, digits = 4)
 mypal.pH <- colorRampPalette(c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08b", "#e6f598", "#abdda4", "#66c2a5", "#3288bd", "#5e4fa2"))
 
 change_point_position = alpha$pH[change_points]
-ggplot(alpha, aes(y = shannon, x = pH, color = pH)) +
+p = ggplot(alpha, aes(y = shannon, x = pH, color = pH)) +
   geom_point(size = 2.5) +
   geom_line() +
   scale_color_gradientn(colours = mypal.pH(256)) +
-  theme_classic() +
+  theme_classic(base_size = 13) +
   theme(legend.position = 'none') +
   geom_vline(xintercept = change_point_position, color = 'red', size = 1) +
   annotate("text", x = change_point_position - 0.07, y = 3.1, label = 'Change point', 
            angle = 90) +
-  annotate("text", x = 4, y = 3.25, label = 'p-value < 0.001 (ANOVA)') +
+  annotate("text", x = 4, y = 3.25, 
+           size = 4.4, label = 'p-value < 0.001 (ANOVA)') +
   ylab('Shannon ')
+
+ggsave('graftM_genes/Figures/alpha.svg', p, width = 7, height = 5)

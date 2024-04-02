@@ -168,3 +168,9 @@ decorate_annotation("change_point_ang", {
     gp = gpar(fontsize = 9)
   )
 })
+
+p = recordPlot()
+plot.new()
+png('singleM_community/Figures/tipping_points.png', height = 700, width = 700)
+print(p)
+dev.off()

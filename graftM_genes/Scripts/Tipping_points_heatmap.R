@@ -174,3 +174,8 @@ decorate_annotation("change_point_ang", {
   )
 })
 
+p = recordPlot()
+plot.new()
+png('graftM_genes/Figures/tipping_points.png', height = 700, width = 700)
+print(p)
+dev.off()
