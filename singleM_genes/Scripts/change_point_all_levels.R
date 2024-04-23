@@ -141,5 +141,5 @@ library(patchwork)
 joys = joyplot + alpha_joy
 bins = binplot + alpha_bin
 
-ggsave('singleM_genes/Figures/change_point.png', joys, width = 10, height = 8)
-ggsave('singleM_genes/Figures/change_bin.png', bins, width = 10, height = 8)
+# ggsave('singleM_genes/Figures/change_point.png', joys, width = 10, height = 8)
+# ggsave('singleM_genes/Figures/change_bin.png', bins, width = 10, height = 8)

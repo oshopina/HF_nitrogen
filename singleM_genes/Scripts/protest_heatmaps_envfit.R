@@ -1,5 +1,6 @@
 library(ape)
 library(ComplexHeatmap)
+library(changepoint)
 
 mantel = readRDS('singleM_genes/Results/pr_mat_t0.rds')
 
@@ -49,8 +50,21 @@ for (i in names(mantel)) {
   labels[match(temp, rownames(df))] = temp
   
   ## Add clustering
-  clust = hclust(as.dist(1 - df))
-  clust = cutree(clust, k = 5)
+  wcss <- numeric(10)
+  for (j in 1:10) {
+    kmeans_result <- kmeans(as.dist(1 - df), centers=j)
+    wcss[j] <- kmeans_result$tot.withinss
+  }
+  
+  cutoff = cpt.meanvar(
+            wcss,
+            method = "PELT",
+            penalty = 'CROPS',
+            pen.value = c(5, 500)
+          ) |> cpts(ncpt = 1)
+  
+  clust = kmeans(as.dist(1 - df), centers=cutoff[1])
+  clust = clust$cluster
   clust = as.factor(clust)
   names(clust) = paste('c.', names(clust))
   
@@ -63,7 +77,8 @@ for (i in names(mantel)) {
   perm$p_value = as.numeric(perm$p_value)
   
   ha = rowAnnotation(Group = clust,
-                     col = list(Group = c(`1` = '#7fc97f', `2` = '#beaed4', `3` = '#fdc086', `4` = '#386cb0', `5` = '#ffff99')),
+                     col = list(Group = c(`1` = '#7fc97f', `2` = '#beaed4', `3` = '#fdc086', `4` = '#386cb0', 
+                                          `5` = '#ffff99', `6` = '#1a8f24', `7` = '#fb00ba', `8` = '#9f4fe9')),
                      gp = gpar(col = "black"),
                      show_legend = F)
   
@@ -99,7 +114,7 @@ heatmaps = lapply(heatmaps, function(x){
 library(cowplot)
 combined_plot2 = plot_grid(plotlist = heatmaps, ncol = 9)
 
-ggsave('singleM_genes/Figures/protest_heatmap_envfit.png', combined_plot2, width = 30, height = 17)
+ggsave('singleM_genes/Figures/protest_heatmap_envfit1.png', combined_plot2, width = 30, height = 17)
 
 # pdf('singleM_genes/Figures/mantel_heatmaps.pdf')
 # for (i in seq_along(heatmaps)) {

@@ -107,13 +107,13 @@ for (j in names(alpha_by_gene)) {
   }
 }
 
-library(patchwork)
 gene_order = openxlsx::read.xlsx('graftM_genes/Data/nitrogen_genes.xlsx')
 gene_order = gene_order[gene_order$Gene %in% names(gene_plots), ]
 gene_plots = gene_plots[gene_order$Gene]
 
-combined_plot = wrap_plots(gene_plots, ncol = 7)
-# ggsave('singleM_genes/Figures/5_levels.svg', device = 'svg', combined_plot, width = 25, height = 21)
+library(cowplot)
+combined_plot2 = plot_grid(plotlist = gene_plots, ncol = 9)
+# ggsave('singleM_genes/Figures/5_levels1.svg', device = 'svg', combined_plot2, width = 30, height = 17)
 
 dummy_plot = ggplot(df, aes(x = pH, y = value, col = Cluster)) +
   geom_point(size = 5) +
@@ -122,7 +122,7 @@ dummy_plot = ggplot(df, aes(x = pH, y = value, col = Cluster)) +
   guides(color = guide_legend(nrow = 1)) +
   labs(color = "Clustering level")
 
-ggsave('singleM_genes/Figures/5_legend.svg', device = 'svg', dummy_plot)
+# ggsave('singleM_genes/Figures/5_legend.svg', device = 'svg', dummy_plot)
 
 # pdf('singleM_genes/Figures/5_levels.pdf')
 # for (i in seq_along(gene_plots)) {
