@@ -53,6 +53,13 @@ plot(ang_cpt, ncpts = 2)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
+############################## Cluster analysis ###############################
+
+set.seed(123)
+clust = kmeans(as.dist(df_mat), centers=cp_dist + 1, iter.max = 999)
+clust = clust$cluster
+clust = as.factor(clust)
+
 ######################## Prepare taxonomy labels for heatmap ##################
 
 tax <- taxonomy.all[colnames(df),]
@@ -167,7 +174,9 @@ ha2 = HeatmapAnnotation(
     axis = F
   ),
   height = unit(3, "cm"), 
-  show_annotation_name = F
+  show_annotation_name = F,
+  cluster = clust,
+  show_legend = F
 )
 
 ## Create Heatmap
