@@ -58,14 +58,31 @@ plot(ang_cpt, ncpts = 2)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
+############################## Cluster analysis ###############################
+set.seed(123)
+clust = kmeans(as.dist(df_mat), centers=cp_angle + 1, iter.max = 999)
+clust = clust$cluster
+clust = as.factor(clust)
+
 ## ANOVA for each gene
-anova = auto_aov_fixed(df, ~ pH, env)$Results
-anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
-rownames(anova) = anova$Data
-anova = anova[gene_ontology$Gene,]
-anova$F_value = round(anova$F_value, digits = 2)
-anova$p_value = round(anova$p_value, digits = 4)
-anova$Signif <- gsub("\\*+", "*", anova$Signif)
+anova_results = data.frame()
+for(i in colnames(df)) {
+  anova = anova(aov(df[,i] ~ pH + I(pH^2), data = env))
+  anova <- as.data.frame(anova[, c(1, 4, 5)])
+  colnames(anova) <- c("Df", "F_value", "p_value")
+  anova <- anova %>% mutate(Signif = case_when(p_value < 0.05 ~ "*", TRUE ~ " "))
+  filtered_anova <- anova %>%
+    filter(Signif == "*" | row_number() <= 2) %>%
+    arrange(desc(Signif)) |> 
+    slice(1)
+  rownames(filtered_anova) = i
+  anova_results = rbind(anova_results, filtered_anova)
+}
+
+anova_results = anova_results[colnames(df),]
+anova_results$F_value = round(anova_results$F_value, digits = 2)
+anova_results$p_value = round(anova_results$p_value, digits = 4)
+anova = anova_results
 
 ## Save ANOVA results to a Word document
 #gtsave(gt::gt(anova), 'graftM_genes/Results/anova_ra.docx')
@@ -76,6 +93,7 @@ my_palette = colorRampPalette(c('white', 'black'))
 df_scaled <- df |> vegan::decostand(method = 'hellinger', MARGIN = 2) |> scale() |> t()
 df_scaled = df_scaled[,rownames(env)]
 df_scaled = df_scaled[gene_ontology$Gene,]
+anova = anova[gene_ontology$Gene,]
 
 medians = apply(df[,gene_ontology$Gene], 2, function(x){
   median(x)
@@ -135,7 +153,9 @@ ha2 = HeatmapAnnotation(
     axis = F
   ),
   height = unit(3, "cm"), 
-  show_annotation_name = F
+  show_annotation_name = F,
+  cluster = clust,
+  show_legend = F
 )
 
 ha_c <- rowAnnotation(
@@ -167,6 +187,14 @@ draw(Heatmap(
   right_annotation = ha_f,
   show_heatmap_legend = FALSE
 ))
+
+decorate_annotation("cluster", 
+                    grid.text(
+                      "K-means cluster",
+                      x = unit(1.07, "npc"),
+                      y = unit(0.5, "npc"),
+                      gp = gpar(fontsize = 9)
+                    ))
 
 change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
 
@@ -226,11 +254,18 @@ decorate_annotation("change_point_ang", {
   )
 })
 
-ra_col = circlize::colorRamp2(c(0, 1), c('white', 'black'))
-ra_lgd = Legend(title = 'Relative scaled \nfrequency', col_fun = ra_col, at = c(0, 1),
-                direction = 'horizontal', border = 'black', legend_width = unit(3, "cm"))
-draw(ra_lgd, x = unit(0.85, "npc"), y = unit(0.95, "npc"))
-
 lgd = Legend(title = 'Median frequency', col_fun = median_col, at = c(0, 200, 500),
              direction = 'horizontal', border = 'black', legend_width = unit(3, "cm"))
-draw(lgd, x = unit(0.25, "npc"), y = unit(0.95, "npc"))
+draw(lgd, x = unit(0.1, "npc"), y = unit(0.95, "npc"))
+
+## Add Relative abundance heatmap
+# ra_col = circlize::colorRamp2(c(0, 1), c('white', 'black'))
+# ra_lgd = Legend(title = 'Relative scaled \nfrequency', col_fun = ra_col, at = c(0, 1),
+#                 direction = 'horizontal', border = 'black', legend_width = unit(3, "cm"))
+# draw(ra_lgd, x = unit(0.85, "npc"), y = unit(0.95, "npc"))
+
+p = recordPlot()
+plot.new()
+png('graftM_genes/Figures/heatmap_RA.png', height = 800, width = 800)
+print(p)
+dev.off()
