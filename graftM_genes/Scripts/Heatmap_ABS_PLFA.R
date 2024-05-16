@@ -72,14 +72,31 @@ plot(ang_cpt, ncpts = 3)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
+############################## Cluster analysis ###############################
+set.seed(123)
+clust = kmeans(as.dist(df_mat), centers=cp_dist + 1, iter.max = 999)
+clust = clust$cluster
+clust = as.factor(clust)
+
 ## ANOVA for each gene
-anova = auto_aov_fixed(genes_abs, ~ pH, env)$Results
-anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
-rownames(anova) = anova$Data
-anova = anova[gene_ontology$Gene,]
-anova$F_value = round(anova$F_value, digits = 2)
-anova$p_value = round(anova$p_value, digits = 4)
-anova$Signif <- gsub("\\*+", "*", anova$Signif)
+anova_results = data.frame()
+for(i in colnames(genes_abs)) {
+  anova = anova(aov(genes_abs[,i] ~ pH + I(pH^2), data = env))
+  anova <- as.data.frame(anova[, c(1, 4, 5)])
+  colnames(anova) <- c("genes_abs", "F_value", "p_value")
+  anova <- anova %>% mutate(Signif = case_when(p_value < 0.05 ~ "*", TRUE ~ " "))
+  filtered_anova <- anova %>%
+    filter(Signif == "*" | row_number() <= 2) %>%
+    arrange(desc(Signif)) |> 
+    slice(1)
+  rownames(filtered_anova) = i
+  anova_results = rbind(anova_results, filtered_anova)
+}
+
+anova_results = anova_results[colnames(genes_abs),]
+anova_results$F_value = round(anova_results$F_value, digits = 2)
+anova_results$p_value = round(anova_results$p_value, digits = 4)
+anova = anova_results
 
 ## Save ANOVA results to a Word document
 #gtsave(gt::gt(anova), 'graftM_genes/Results/anova_ra.docx')
@@ -87,15 +104,17 @@ anova$Signif <- gsub("\\*+", "*", anova$Signif)
 ################################# Heatmap #####################################
 ## Set up color palette and scale gene count data
 my_palette = colorRampPalette(c('white', 'black'))
-genes_abs_scaled = genes_abs |> scale() |> t()
+genes_abs_scaled <- genes_abs |> scale() |> t()
 genes_abs_scaled = genes_abs_scaled[,rownames(env)]
 genes_abs_scaled = genes_abs_scaled[gene_ontology$Gene,]
+anova = anova[gene_ontology$Gene,]
 
 medians = apply(genes_abs[,gene_ontology$Gene], 2, function(x){
   median(x)
 })
 median_col = circlize::colorRamp2(c(0, 80), c('white', 'aquamarine4'))
 
+## Define color palette for pH levels and names for pH levels
 ## Define color palette for pH levels and names for pH levels
 col_fun = circlize::colorRamp2(
   c(3.7, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8),
@@ -148,11 +167,14 @@ ha2 = HeatmapAnnotation(
     axis = F
   ),
   height = unit(3, "cm"), 
-  show_annotation_name = F
+  show_annotation_name = F,
+  cluster = clust,
+  show_legend = F
 )
 
 ha_c <- rowAnnotation(
   Median = medians,
+  gp = gpar(col = "black"),
   col = list(Median = median_col),
   show_legend = F, 
   show_annotation_name = F
@@ -162,11 +184,9 @@ ha_f <- rowAnnotation(
   anova = anno_text(anova$Signif)
 )
 
-lgd = Legend(title = 'Median frequency', col_fun = median_col, at = c(0, 30, 80),
-             direction = 'horizontal')
 
 # Create heatmap
-Heatmap(
+draw(Heatmap(
   genes_abs_scaled,
   row_order = rownames(genes_abs_scaled),
   column_order = env$Hoosfield.ID,
@@ -180,9 +200,16 @@ Heatmap(
   left_annotation = ha_c,
   right_annotation = ha_f,
   show_heatmap_legend = FALSE
-)
+))
 
-draw(lgd, x = unit(0.10, "npc"), y = unit(0.95, "npc"))
+decorate_annotation("cluster", 
+                    grid.text(
+                      "K-means cluster",
+                      x = unit(1.07, "npc"),
+                      y = unit(0.5, "npc"),
+                      gp = gpar(fontsize = 9)
+                    ))
+
 change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
 
 #creating vertical line for each change point in distance
@@ -240,6 +267,22 @@ decorate_annotation("change_point_ang", {
     gp = gpar(fontsize = 9)
   )
 })
+
+lgd = Legend(title = 'Median frequency', col_fun = median_col, at = c(0, 80),
+             direction = 'horizontal', border = 'black', legend_width = unit(3, "cm"))
+draw(lgd, x = unit(0.1, "npc"), y = unit(0.95, "npc"))
+
+## Add Relative abundance heatmap
+# ra_col = circlize::colorRamp2(c(0, 1), c('white', 'black'))
+# ra_lgd = Legend(title = 'Relative scaled \nfrequency', col_fun = ra_col, at = c(0, 1),
+#                 direction = 'horizontal', border = 'black', legend_width = unit(3, "cm"))
+# draw(ra_lgd, x = unit(0.85, "npc"), y = unit(0.95, "npc"))
+
+p = recordPlot()
+plot.new()
+png('graftM_genes/Figures/heatmap_ABS.png', height = 800, width = 800)
+print(p)
+dev.off()
 
 
 
