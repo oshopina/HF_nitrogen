@@ -61,9 +61,14 @@ plot(ang_cpt, ncpts = 2)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
+############################## Cluster analysis ###############################
+set.seed(123)
+clust = kmeans(as.dist(beta_diversity), centers=cp_dist + 1, iter.max = 999)
+clust = clust$cluster
+clust = as.factor(clust)
 
 ################################ Build heatmap #################################
-my_palette = colorRampPalette(c('#100d12', '#980011', '#fe8d2f', '#fff1a2'))
+my_palette = colorRampPalette(c('#290133', '#672976', '#AE7DBB', 'white'))
 col_fun = circlize::colorRamp2(c(3.7, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8),
                                c("#9e0142", "#d53e4f", "#f46d43", "#fdae61", "#fee08a",
                                  "#e6f598", "#aadda4", "#66a2a5", "#3288ad", "#5e4fa2"))
@@ -94,9 +99,10 @@ ha2 = HeatmapAnnotation(
     axis = F
   ),
   height = unit(3, "cm"), 
-  show_annotation_name = F
+  show_annotation_name = F,
+  cluster = clust,
+  show_legend = F
 )
-
 
 Heatmap(
   beta_diversity,
@@ -108,8 +114,18 @@ Heatmap(
   bottom_annotation = ha,
   left_annotation = ha1,
   top_annotation = ha2,
-  show_heatmap_legend = FALSE
-)
+  show_heatmap_legend = FALSE,
+  heatmap_width = unit(20, "cm"), 
+  heatmap_height = unit(22, "cm"))
+
+decorate_annotation("cluster", 
+                    grid.text(
+                      "K-means cluster",
+                      x = unit(0, "npc"),
+                      hjust = 1,
+                      y = unit(0.5, "npc"),
+                      gp = gpar(fontsize = 9)
+                    ))
 
 change_points_dist = cpts(dist_cpt, 2)[!is.na(cpts(dist_cpt, 2))]
 
@@ -171,6 +187,6 @@ decorate_annotation("change_point_ang", {
 
 p = recordPlot()
 plot.new()
-png('singleM_community/Figures/tipping_points.png', height = 700, width = 700)
+png('singleM_community/Figures/tipping_points.png', height = 700, width = 900)
 print(p)
 dev.off()
