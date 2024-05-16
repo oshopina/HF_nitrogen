@@ -164,7 +164,7 @@ ha <- HeatmapAnnotation(
 )
 
 ## Create taxonomy annotations
-median_col = circlize::colorRamp2(c(0, 300), c('white', 'aquamarine4'))
+median_col = circlize::colorRamp2(c(0, 11500000), c('white', 'aquamarine4'))
 ha_c <- rowAnnotation(
   phylum = anno_text(tax$phylum_label, gp = gpar(fontface = 'bold')),
   class = anno_text(tax$class_label),
@@ -296,9 +296,9 @@ decorate_annotation("change_point_ang", {
   )
 })
 
-lgd = Legend(title = 'Median abundance', col_fun = median_col, at = c(0, 100, 200, 300),
+lgd = Legend(title = 'Median abundance', col_fun = median_col, at = c(0, 11500000),
              direction = 'horizontal', border = 'black', legend_width = unit(3, "cm"))
-draw(lgd, x = unit(0.25, "npc"), y = unit(0.95, "npc"))
+draw(lgd, x = unit(0.20, "npc"), y = unit(0.95, "npc"))
 
 ## Add Relative abundance legend
 

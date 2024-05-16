@@ -15,7 +15,6 @@ genes = unique(names(GSV_rarefied_gsvtables80))
 
 gc()
 
-
 for (ngene in 1:length(genes)) {
   j = genes[ngene]
   print(j)
@@ -79,20 +78,35 @@ for (ngene in 1:length(genes)) {
     cp_angle = sum(!is.na(ang_var[cutoff[1],]))
   }
   
-  
   max_values = apply(df, 2, max)
   max_values = order(max_values, decreasing = T)
   df_plot = df[, max_values[1:50]]
   
-  ## ANOVA for each gene
-  anova = auto_aov_fixed(df_plot, ~ pH, env_temp)$Results
-  anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
-  rownames(anova) = anova$Data
+  ############################## Cluster analysis ###############################
+  set.seed(123)
+  clust = kmeans(as.dist(df_plot), centers=cp_angle + 1, iter.max = 999)
+  clust = clust$cluster
+  clust = as.factor(clust)
   
-  gene_order = openxlsx::read.xlsx('graftM_genes/Data/nitrogen_genes.xlsx')
-  anova$F_value = round(anova$F_value, digits = 2)
-  anova$p_value = round(anova$p_value, digits = 4)
-  anova$Signif <- gsub("\\*+", "*", anova$Signif)
+  ## ANOVA for each gene
+  anova_results = data.frame()
+  for(i in colnames(df_plot)) {
+    anova = anova(aov(df_plot[,i] ~ pH + I(pH^2), data = env_temp))
+    anova <- as.data.frame(anova[, c(1, 4, 5)])
+    colnames(anova) <- c("df_plot", "F_value", "p_value")
+    anova <- anova %>% mutate(Signif = case_when(p_value < 0.05 ~ "*", TRUE ~ " "))
+    filtered_anova <- anova %>%
+      filter(Signif == "*" | row_number() <= 2) %>%
+      arrange(desc(Signif)) |> 
+      slice(1)
+    rownames(filtered_anova) = i
+    anova_results = rbind(anova_results, filtered_anova)
+  }
+  
+  anova_results = anova_results[colnames(df_plot),]
+  anova_results$F_value = round(anova_results$F_value, digits = 2)
+  anova_results$p_value = round(anova_results$p_value, digits = 4)
+  anova = anova_results
   
   ################################# Heatmap #####################################
   ## Set up color palette and scale gene count data
@@ -163,14 +177,17 @@ for (ngene in 1:length(genes)) {
     change_point_ang = anno_lines(data.set(ang_cpt),
                                   axis = F),
     height = unit(3, "cm"),
-    show_annotation_name = F
+    show_annotation_name = F,
+    cluster = clust,
+    show_legend = F
   )
   
   ha_c <- rowAnnotation(
-    Median = medians,
-    col = list(Median = median_col),
-    show_legend = F,
-    show_annotation_name = F
+  Median = medians,
+  gp = gpar(col = "black"),
+  col = list(Median = median_col),
+  show_legend = F, 
+  show_annotation_name = F
   )
   
   ha_f <- rowAnnotation(anova = anno_text(anova$Signif))
@@ -180,7 +197,8 @@ for (ngene in 1:length(genes)) {
     col_fun = median_col,
     at = c(0, max(medians)),
     direction = 'vertical',
-    title_gp = gpar(fontsize = 9, fontface = 'bold')
+    title_gp = gpar(fontsize = 9, fontface = 'bold'),
+    border = 'black'
   )
   
   draw(
@@ -197,6 +215,15 @@ for (ngene in 1:length(genes)) {
       column_title = j
     )
   )
+  
+  decorate_annotation("cluster", 
+                      grid.text(
+                        "K-means\ncluster",
+                        x = unit(0, "npc"),
+                        hjust = 1.1,
+                        y = unit(0.5, "npc"),
+                        gp = gpar(fontsize = 9)
+                      ))
   
   draw(lgd, x = unit(0.04, "npc"), y = unit(0.95, "npc"))
   
