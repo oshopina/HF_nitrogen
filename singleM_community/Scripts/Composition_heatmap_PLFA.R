@@ -29,7 +29,6 @@ otu.bac.nr = otu.bac.nr[rownames(plfa),]
 plfa_CN = plfa$bacteria/0.00002
 otu.bac.nr.abs = otu.bac.nr * plfa_CN
 
-## Perform ANOVA analysis
 df <- otu.bac.nr[, apply(otu.bac.nr, 2, max) >= 150] 
 df.abs <- otu.bac.nr.abs[, colnames(df)]
 
@@ -50,7 +49,7 @@ pen.value.full(dist_cpt)
 dist_var = cpts.full(dist_cpt)
 tail(dist_var)
 plot(dist_cpt, diagnostic = T)
-plot(dist_cpt, ncpts = 3)
+plot(dist_cpt, ncpts = 2)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_dist = readline('Number of changepoint for distance data: ') |> as.numeric()
 
@@ -65,13 +64,17 @@ pen.value.full(ang_cpt)
 ang_var = cpts.full(ang_cpt)
 tail(ang_var)
 plot(ang_cpt, diagnostic = T)
-plot(ang_cpt, ncpts = 3)
+plot(ang_cpt, ncpts = 2)
 ######################### WRITE CHOSEN NUMBER OF CHANGEPOINTS FOR ANGLE AND DISTANCE
 cp_angle = readline('Number of changepoint for angle data: ') |> as.numeric()
 
+############################## Cluster analysis ###############################
+set.seed(123)
+clust = kmeans(as.dist(df_mat), centers=cp_dist + 1, iter.max = 999)
+clust = clust$cluster
+clust = as.factor(clust)
 
 ######################## Prepare taxonomy labels for heatmap ##################
-
 tax <- taxonomy.all[colnames(df.abs),]
 tax <- tax[order(tax$Phylum, tax$Class, tax$Order, tax$Family, tax$Genus),] ## Order taxonomy alphabetically
 tax[is.na(tax)] <- 'Unc.'
@@ -89,13 +92,24 @@ tax$otu_label <- paste0('[', substring(tax$OTU, 2), ']')
 df.abs <- df.abs[, tax$OTU]
 
 ## Perform ANOVA analysis
-anova <- auto_aov_fixed(df.abs, ~ pH, env_df = env)$Results
-anova = subset(anova, str_detect(Parameter, 'pH'))[, c('Data', 'F_value', 'p_value', 'Signif')]
-rownames(anova) = anova$Data
-anova = anova[colnames(df.abs),]
-anova$F_value = round(anova$F_value, digits = 2)
-anova$p_value = round(anova$p_value, digits = 4)
-anova$Signif <- gsub("\\*+", "*", anova$Signif)
+anova_results = data.frame()
+for(i in colnames(df.abs)) {
+  anova = anova(aov(df.abs[,i] ~ pH + I(pH^2), data = env))
+  anova <- as.data.frame(anova[, c(1, 4, 5)])
+  colnames(anova) <- c("df.abs", "F_value", "p_value")
+  anova <- anova %>% mutate(Signif = case_when(p_value < 0.05 ~ "*", TRUE ~ " "))
+  filtered_anova <- anova %>%
+    filter(Signif == "*" | row_number() <= 2) %>%
+    arrange(desc(Signif)) |> 
+    slice(1)
+  rownames(filtered_anova) = i
+  anova_results = rbind(anova_results, filtered_anova)
+}
+
+anova_results = anova_results[colnames(df.abs),]
+anova_results$F_value = round(anova_results$F_value, digits = 2)
+anova_results$p_value = round(anova_results$p_value, digits = 4)
+anova = anova_results
 
 ## Save ANOVA results to a Word document
 # gtsave(gt::gt(anova), 'singleM_community/Results/anova_ra.docx')
@@ -150,21 +164,19 @@ ha <- HeatmapAnnotation(
 )
 
 ## Create taxonomy annotations
-
-median_col = circlize::colorRamp2(c(0, 11600000), c('white', 'aquamarine4'))
-
+median_col = circlize::colorRamp2(c(0, 300), c('white', 'aquamarine4'))
 ha_c <- rowAnnotation(
   phylum = anno_text(tax$phylum_label, gp = gpar(fontface = 'bold')),
   class = anno_text(tax$class_label),
   order = anno_text(tax$order_label),
   Median = medians,
+  gp = gpar(col = "black"),
   col = list(Median = median_col),
   show_legend = F, 
   show_annotation_name = F
 )
 
-lgd = Legend(title = 'Median abundance', col_fun = median_col, at = c(0, 11600000),
-             direction = 'horizontal')
+
 
 ha_f <- rowAnnotation(
   anova = anno_text(anova$Signif),
@@ -184,11 +196,23 @@ ha2 = HeatmapAnnotation(
     axis = F
   ),
   height = unit(3, "cm"), 
-  show_annotation_name = F
+  show_annotation_name = F,
+  cluster = clust,
+  show_legend = F
 )
 
 ## Create Heatmap
-my_palette <- colorRampPalette(c('white', 'black'))
+my_palette = colorRampPalette(c(
+  'white',
+  '#eeeeee',
+  '#aaaaaa',
+  '#444444',
+  '#3a3a3a',
+  '#2d2d2d',
+  'black'
+))
+
+png('singleM_community/Figures/heatmap_ABS.png', width = 1200, height = 1000)
 
 draw(Heatmap(
   df.abs_scaled,
@@ -206,7 +230,14 @@ draw(Heatmap(
   show_heatmap_legend = FALSE
 ))
 
-draw(lgd, x = unit(0.25, "npc"), y = unit(0.95, "npc"))
+decorate_annotation("cluster", 
+                    grid.text(
+                      "K-means cluster",
+                      x = unit(1.07, "npc"),
+                      y = unit(0.5, "npc"),
+                      gp = gpar(fontsize = 9)
+                    ))
+
 change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
 
 #creating vertical line for each change point in distance
@@ -265,5 +296,15 @@ decorate_annotation("change_point_ang", {
   )
 })
 
+lgd = Legend(title = 'Median abundance', col_fun = median_col, at = c(0, 100, 200, 300),
+             direction = 'horizontal', border = 'black', legend_width = unit(3, "cm"))
+draw(lgd, x = unit(0.25, "npc"), y = unit(0.95, "npc"))
 
+## Add Relative abundance legend
 
+# ra_col = circlize::colorRamp2(c(0, 1), c('white', 'black'))
+# ra_lgd = Legend(title = 'Relative scaled \nabundance', col_fun = ra_col, at = c(0, 1),
+#                 direction = 'horizontal', border = 'black', legend_width = unit(3, "cm"))
+# draw(ra_lgd, x = unit(0.85, "npc"), y = unit(0.95, "npc"))
+
+dev.off()

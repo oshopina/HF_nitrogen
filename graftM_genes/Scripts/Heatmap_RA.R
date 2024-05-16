@@ -140,6 +140,7 @@ ha2 = HeatmapAnnotation(
 
 ha_c <- rowAnnotation(
   Median = medians,
+  gp = gpar(col = "black"),
   col = list(Median = median_col),
   show_legend = F, 
   show_annotation_name = F
@@ -149,8 +150,6 @@ ha_f <- rowAnnotation(
   anova = anno_text(anova$Signif)
 )
 
-lgd = Legend(title = 'Median frequency', col_fun = median_col, at = c(0, 200, 500),
-             direction = 'horizontal')
 
 # Create heatmap
 draw(Heatmap(
@@ -169,7 +168,6 @@ draw(Heatmap(
   show_heatmap_legend = FALSE
 ))
 
-draw(lgd, x = unit(0.10, "npc"), y = unit(0.95, "npc"))
 change_points_dist = cpts(dist_cpt, cp_dist)[!is.na(cpts(dist_cpt, cp_dist))]
 
 #creating vertical line for each change point in distance
@@ -228,5 +226,11 @@ decorate_annotation("change_point_ang", {
   )
 })
 
+ra_col = circlize::colorRamp2(c(0, 1), c('white', 'black'))
+ra_lgd = Legend(title = 'Relative scaled \nfrequency', col_fun = ra_col, at = c(0, 1),
+                direction = 'horizontal', border = 'black', legend_width = unit(3, "cm"))
+draw(ra_lgd, x = unit(0.85, "npc"), y = unit(0.95, "npc"))
 
-
+lgd = Legend(title = 'Median frequency', col_fun = median_col, at = c(0, 200, 500),
+             direction = 'horizontal', border = 'black', legend_width = unit(3, "cm"))
+draw(lgd, x = unit(0.25, "npc"), y = unit(0.95, "npc"))
